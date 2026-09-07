@@ -1,6 +1,7 @@
 import Link from 'next/link';
+import { BookSummary } from '@/types/models';
 
-export default function BookCard({ book }) {
+export default function BookCard({ book }: { book: BookSummary }) {
   return (
     <Link
       href={`/book/${book._id}`}

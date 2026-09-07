@@ -1,6 +1,7 @@
 import { connectDB } from '@/lib/mongodb';
 import Book from '@/models/Book';
 import BookCard from '@/components/BookCard';
+import { BookSummary } from '@/types/models';
 
 export default async function HomePage() {
   await connectDB();
@@ -25,7 +26,7 @@ export default async function HomePage() {
         {/* Адаптивна сітка: 2 колонки на телефоні, 3 на планшеті, 4 на десктопі */}
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
           {recentBooks.map((book) => (
-            <BookCard key={book._id.toString()} book={JSON.parse(JSON.stringify(book))} />
+            <BookCard key={book._id.toString()} book={JSON.parse(JSON.stringify(book)) as BookSummary} />
           ))}
         </div>
         {recentBooks.length === 0 && (

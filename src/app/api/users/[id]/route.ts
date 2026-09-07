@@ -3,7 +3,7 @@ import { connectDB } from '@/lib/mongodb';
 import User from '@/models/User';
 
 // GET /api/users/:id — профіль користувача з його книгами
-export async function GET(request, { params }) {
+export async function GET(request: Request, { params }: { params: { id: string } }) {
   await connectDB();
   const user = await User.findById(params.id).populate('books').select('-password');
   if (!user) return NextResponse.json({ error: 'Користувача не знайдено' }, { status: 404 });
@@ -11,7 +11,7 @@ export async function GET(request, { params }) {
 }
 
 // PATCH /api/users/:id — оновити профіль (ім'я, аватар)
-export async function PATCH(request, { params }) {
+export async function PATCH(request: Request, { params }: { params: { id: string } }) {
   await connectDB();
   const data = await request.json();
   delete data.password; // пароль міняємо окремим захищеним роутом

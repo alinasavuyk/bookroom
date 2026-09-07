@@ -1,9 +1,10 @@
 'use client';
 import { useEffect, useState } from 'react';
 import BookCard from '@/components/BookCard';
+import { BookSummary } from '@/types/models';
 
 export default function CatalogPage() {
-  const [books, setBooks] = useState([]);
+  const [books, setBooks] = useState<BookSummary[]>([]);
   const [search, setSearch] = useState('');
   const [genre, setGenre] = useState('');
   const [loading, setLoading] = useState(true);

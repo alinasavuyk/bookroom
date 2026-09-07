@@ -3,7 +3,7 @@ import { connectDB } from '@/lib/mongodb';
 import Message from '@/models/Message';
 
 // GET /api/messages?userA=...&userB=... — історія переписки двох користувачів
-export async function GET(request) {
+export async function GET(request: Request) {
   await connectDB();
   const { searchParams } = new URL(request.url);
   const userA = searchParams.get('userA');
@@ -20,7 +20,7 @@ export async function GET(request) {
 }
 
 // POST /api/messages — надіслати нове повідомлення
-export async function POST(request) {
+export async function POST(request: Request) {
   await connectDB();
   const data = await request.json();
   const message = await Message.create(data);

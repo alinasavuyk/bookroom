@@ -4,7 +4,7 @@ import { connectDB } from '@/lib/mongodb';
 import User from '@/models/User';
 
 // POST /api/auth/register — створити нового користувача
-export async function POST(request) {
+export async function POST(request: Request) {
   await connectDB();
   const { name, email, password } = await request.json();
 

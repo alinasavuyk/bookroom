@@ -15,6 +15,8 @@ const handler = NextAuth({
         password: { label: 'Пароль', type: 'password' },
       },
       async authorize(credentials) {
+        if (!credentials?.email || !credentials?.password) return null;
+
         await connectDB();
         const user = await User.findOne({ email: credentials.email });
         if (!user || !user.password) return null;
@@ -27,8 +29,8 @@ const handler = NextAuth({
     }),
     // Вхід через Google
     GoogleProvider({
-      clientId: process.env.GOOGLE_CLIENT_ID,
-      clientSecret: process.env.GOOGLE_CLIENT_SECRET,
+      clientId: process.env.GOOGLE_CLIENT_ID as string,
+      clientSecret: process.env.GOOGLE_CLIENT_SECRET as string,
     }),
   ],
   session: { strategy: 'jwt' },
@@ -37,7 +39,7 @@ const handler = NextAuth({
   },
   callbacks: {
     async session({ session, token }) {
-      if (session.user) session.user.id = token.sub;
+      if (session.user) session.user.id = token.sub as string;
       return session;
     },
   },

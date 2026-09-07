@@ -3,13 +3,13 @@ import { connectDB } from '@/lib/mongodb';
 import Book from '@/models/Book';
 
 // GET /api/books?genre=&search= — каталог з фільтрами
-export async function GET(request) {
+export async function GET(request: Request) {
   await connectDB();
   const { searchParams } = new URL(request.url);
   const genre = searchParams.get('genre');
   const search = searchParams.get('search');
 
-  const query = {};
+  const query: Record<string, unknown> = {};
   if (genre) query.genre = genre;
   if (search) query.title = { $regex: search, $options: 'i' };
 
@@ -18,7 +18,7 @@ export async function GET(request) {
 }
 
 // POST /api/books — додати нову книгу на продаж/обмін
-export async function POST(request) {
+export async function POST(request: Request) {
   await connectDB();
   const data = await request.json();
 

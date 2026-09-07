@@ -1,4 +1,4 @@
-export default function BookPage({ params }) {
+export default function BookPage({ params }: { params: { id: string } }) {
   return (
     <div>
       <h1 className="text-2xl font-bold mb-4">Сторінка книги</h1>
