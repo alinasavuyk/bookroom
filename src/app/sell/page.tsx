@@ -1,5 +1,6 @@
 'use client';
 import { useState, FormEvent, ChangeEvent } from 'react';
+import formStyles from '@/styles/Form.module.css';
 
 interface BookFormData {
   title: string;
@@ -79,44 +80,44 @@ export default function SellPage() {
   };
 
   return (
-    <form onSubmit={handleSubmit} className="max-w-lg mx-auto p-4 flex flex-col gap-4">
-      <label className="block">
-        <span className="mb-1 block">Назва книги</span>
+    <form onSubmit={handleSubmit} className={`${formStyles.form} ${formStyles.formWide}`}>
+      <label className={formStyles.label}>
+        <span className={formStyles.labelText}>Назва книги</span>
         <input
           type="text"
           value={formData.title}
           onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-          className="border p-2 w-full rounded"
+          className={formStyles.field}
           required
         />
       </label>
 
-      <label className="block">
-        <span className="mb-1 block">Автор</span>
+      <label className={formStyles.label}>
+        <span className={formStyles.labelText}>Автор</span>
         <input
           type="text"
           value={formData.author}
           onChange={(e) => setFormData({ ...formData, author: e.target.value })}
-          className="border p-2 w-full rounded"
+          className={formStyles.field}
           required
         />
       </label>
 
-      <label className="block">
-        <span className="mb-1 block">Опис</span>
+      <label className={formStyles.label}>
+        <span className={formStyles.labelText}>Опис</span>
         <textarea
           value={formData.description}
           onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-          className="border p-2 w-full rounded"
+          className={formStyles.field}
         />
       </label>
 
-      <label className="block">
-        <span className="mb-1 block">Жанр</span>
+      <label className={formStyles.label}>
+        <span className={formStyles.labelText}>Жанр</span>
         <select
           value={formData.genre}
           onChange={(e) => setFormData({ ...formData, genre: e.target.value })}
-          className="border p-2 w-full rounded"
+          className={formStyles.field}
         >
           <option value="Фантастика">Фантастика</option>
           <option value="Роман">Роман</option>
@@ -125,26 +126,26 @@ export default function SellPage() {
         </select>
       </label>
 
-      <label className="block">
-        <span className="mb-1 block">Ціна (грн)</span>
+      <label className={formStyles.label}>
+        <span className={formStyles.labelText}>Ціна (грн)</span>
         <input
           type="number"
           value={formData.price}
           onChange={(e) => setFormData({ ...formData, price: Number(e.target.value) })}
-          className="border p-2 w-full rounded"
+          className={formStyles.field}
         />
       </label>
-      <label className="block">
-        <span className="mb-1 block">Обкладинка книги</span>
+      <label className={formStyles.label}>
+        <span className={formStyles.labelText}>Обкладинка книги</span>
         <input
           type="file"
           accept="image/*"
           onChange={(e: ChangeEvent<HTMLInputElement>) => setImageFile(e.target.files?.[0] ?? null)}
-          className="border p-2 w-full rounded"
+          className={formStyles.field}
         />
       </label>
-      <div className="flex gap-4">
-        <label className="flex items-center gap-2">
+      <div className={formStyles.checkboxRow}>
+        <label className={formStyles.checkboxLabel}>
           <input
             type="checkbox"
             checked={wantsSale}
@@ -153,7 +154,7 @@ export default function SellPage() {
           Продаж
         </label>
 
-        <label className="flex items-center gap-2">
+        <label className={formStyles.checkboxLabel}>
           <input
             type="checkbox"
             checked={wantsExchange}
@@ -162,11 +163,7 @@ export default function SellPage() {
           Обмін
         </label>
       </div>
-      <button
-        type="submit"
-        disabled={uploading}
-        className="bg-blue-500 text-white p-2 rounded hover:bg-blue-600 disabled:opacity-50"
-      >
+      <button type="submit" disabled={uploading} className={formStyles.submitButton}>
         {uploading ? 'Завантаження фото...' : 'Додати книгу'}
       </button>
     </form>

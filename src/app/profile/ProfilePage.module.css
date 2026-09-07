@@ -1,0 +1,111 @@
+.message {
+  color: var(--color-blue);
+  margin-bottom: 1rem;
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+  margin-bottom: 2rem;
+}
+
+.avatarLarge {
+  width: 6rem;
+  height: 6rem;
+  border-radius: 50%;
+  object-fit: cover;
+  flex-shrink: 0;
+}
+
+.avatarRow {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.avatarPreview {
+  width: 4rem;
+  height: 4rem;
+  border-radius: 50%;
+  object-fit: cover;
+  flex-shrink: 0;
+}
+
+.avatarPlaceholder {
+  width: 4rem;
+  height: 4rem;
+  border-radius: 50%;
+  background: var(--color-blue-soft);
+  color: var(--color-blue);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 1.25rem;
+  flex-shrink: 0;
+}
+
+.header .avatarPlaceholder {
+  width: 6rem;
+  height: 6rem;
+  font-size: 2rem;
+}
+
+.name {
+  font-size: 1.5rem;
+  font-weight: 700;
+  margin: 0;
+}
+
+.bio {
+  color: var(--color-text-muted);
+  margin: 0.25rem 0 0.75rem;
+}
+
+.editButton {
+  background: var(--color-blue);
+  color: var(--color-white);
+  border: none;
+  border-radius: 0.25rem;
+  padding: 0.4rem 0.9rem;
+  cursor: pointer;
+  font: inherit;
+}
+
+.editButton:hover {
+  background: var(--color-blue-light);
+}
+
+.passwordSection {
+  border-top: 1px solid var(--color-border);
+  padding-top: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.passwordTitle {
+  font-weight: 600;
+  margin: 0;
+}
+
+.actionsRow {
+  display: flex;
+  gap: 0.75rem;
+}
+
+.cancelButton {
+  background: none;
+  border: 1px solid var(--color-border);
+  border-radius: 0.25rem;
+  padding: 0.5rem 1rem;
+  cursor: pointer;
+  font: inherit;
+}
+
+.sectionHeading {
+  font-size: 1.25rem;
+  font-weight: 600;
+  margin: 2rem 0 1rem;
+}

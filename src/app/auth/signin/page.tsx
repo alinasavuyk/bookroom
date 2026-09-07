@@ -3,31 +3,26 @@ import { useState, FormEvent } from 'react';
 import { signIn } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { isValidEmail, isValidPassword, isNonEmpty } from '@/lib/validation';
+import { isValidEmail, isNonEmpty } from '@/lib/validation';
 import PasswordInput from '@/components/PasswordInput';
 import formStyles from '@/styles/Form.module.css';
 
 interface FieldErrors {
-  name?: string;
   email?: string;
   password?: string;
 }
 
-export default function RegisterPage() {
+export default function SignInPage() {
   const router = useRouter();
-  const [formData, setFormData] = useState({
-    name: '',
-    email: '',
-    password: '',
-  });
+  const [formData, setFormData] = useState({ email: '', password: '' });
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
   const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
 
   const validate = (): FieldErrors => {
     const errors: FieldErrors = {};
-    if (!isNonEmpty(formData.name)) errors.name = "Вкажи ім'я";
     if (!isValidEmail(formData.email)) errors.email = 'Введи коректний email';
-    if (!isValidPassword(formData.password)) errors.password = 'Пароль має містити щонайменше 6 символів';
+    if (!isNonEmpty(formData.password)) errors.password = 'Введи пароль';
     return errors;
   };
 
@@ -39,47 +34,28 @@ export default function RegisterPage() {
     setFieldErrors(errors);
     if (Object.keys(errors).length > 0) return;
 
-    const res = await fetch('/api/auth/register', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(formData),
+    setLoading(true);
+
+    const result = await signIn('credentials', {
+      email: formData.email,
+      password: formData.password,
+      redirect: false,
     });
 
-    const data = await res.json();
+    setLoading(false);
 
-    if (res.ok) {
-      const signInResult = await signIn('credentials', {
-        email: formData.email,
-        password: formData.password,
-        redirect: false,
-      });
-
-      if (signInResult?.error) {
-        router.push('/auth/signin');
-      } else {
-        router.push('/profile');
-      }
+    if (result?.error) {
+      setError('Невірний email або пароль.');
     } else {
-      setError(data.error || 'Сталася помилка. Спробуй ще раз.');
+      router.push('/');
     }
   };
 
   return (
     <form onSubmit={handleSubmit} noValidate className={`${formStyles.form} ${formStyles.formNarrow}`}>
-      <h1 className={formStyles.title}>Реєстрація</h1>
+      <h1 className={formStyles.title}>Вхід</h1>
 
       {error && <p className={formStyles.errorText}>{error}</p>}
-
-      <label className={formStyles.label}>
-        <span className={formStyles.labelText}>Ім&apos;я</span>
-        <input
-          type="text"
-          value={formData.name}
-          onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-          className={formStyles.field}
-        />
-        {fieldErrors.name && <p className={formStyles.errorText}>{fieldErrors.name}</p>}
-      </label>
 
       <label className={formStyles.label}>
         <span className={formStyles.labelText}>Email</span>
@@ -102,14 +78,14 @@ export default function RegisterPage() {
         {fieldErrors.password && <p className={formStyles.errorText}>{fieldErrors.password}</p>}
       </label>
 
-      <button type="submit" className={formStyles.submitButton}>
-        Зареєструватись
+      <button type="submit" disabled={loading} className={formStyles.submitButton}>
+        {loading ? 'Входимо...' : 'Увійти'}
       </button>
 
       <p className={formStyles.footerText}>
-        Вже маєш акаунт?{' '}
-        <Link href="/auth/signin" className={formStyles.link}>
-          Увійти
+        Немає акаунту?{' '}
+        <Link href="/auth/register" className={formStyles.link}>
+          Зареєструватись
         </Link>
       </p>
     </form>

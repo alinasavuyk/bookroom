@@ -5,8 +5,9 @@ export interface IUser {
   email: string;
   password?: string;
   avatar: string;
+  bio: string;
   provider: 'credentials' | 'google';
-  books: mongoose.Types.ObjectId[];
+  savedBooks: mongoose.Types.ObjectId[];
   rating: number;
 }
 
@@ -16,8 +17,9 @@ const UserSchema = new Schema<IUser>(
     email: { type: String, required: true, unique: true },
     password: { type: String }, // немає, якщо вхід через соцмережу
     avatar: { type: String, default: '' },
+    bio: { type: String, default: '' },
     provider: { type: String, enum: ['credentials', 'google'], default: 'credentials' },
-    books: [{ type: Schema.Types.ObjectId, ref: 'Book' }],
+    savedBooks: [{ type: Schema.Types.ObjectId, ref: 'Book' }],
     rating: { type: Number, default: 0 },
   },
   { timestamps: true }

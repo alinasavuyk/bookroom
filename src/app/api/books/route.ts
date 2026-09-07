@@ -8,10 +8,12 @@ export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const genre = searchParams.get('genre');
   const search = searchParams.get('search');
+  const owner = searchParams.get('owner');
 
   const query: Record<string, unknown> = {};
   if (genre) query.genre = genre;
   if (search) query.title = { $regex: search, $options: 'i' };
+  if (owner) query.owner = owner;
 
   const books = await Book.find(query).populate('owner', 'name avatar').sort({ createdAt: -1 });
   return NextResponse.json(books);

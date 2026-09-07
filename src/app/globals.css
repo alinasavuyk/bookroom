@@ -1,7 +1,34 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+:root {
+  --color-blue: #2e4e9e;
+  --color-blue-light: #5d7fc7;
+  --color-blue-soft: #b9c8ed;
+  --color-cream: #f7f1e7;
+  --color-white: #ffffff;
+  --color-text: #1f2937;
+  --color-text-muted: #6b7280;
+  --color-text-faint: #9ca3af;
+  --color-border: #d1d5db;
+  --color-surface: #f3f4f6;
+  --color-error: #ef4444;
+
+  --breakpoint-sm: 480px;
+  --breakpoint-md: 768px;
+  --breakpoint-lg: 1024px;
+  --breakpoint-xl: 1280px;
+}
+
+* {
+  box-sizing: border-box;
+}
 
 body {
-  @apply bg-gray-50 text-gray-900;
+  margin: 0;
+  background: var(--color-cream);
+  color: var(--color-text);
+  font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
 }

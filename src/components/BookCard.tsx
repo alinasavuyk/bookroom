@@ -1,24 +1,66 @@
+'use client';
 import Link from 'next/link';
+import { useState, MouseEvent } from 'react';
+import { useSession } from 'next-auth/react';
 import { BookSummary } from '@/types/models';
+import { TbHeart, TbHeartFilled } from '@/lib/icons';
+import styles from './BookCard.module.css';
 
-export default function BookCard({ book }: { book: BookSummary }) {
+interface BookCardProps {
+  book: BookSummary;
+  initialSaved?: boolean;
+  onToggleSaved?: (bookId: string, saved: boolean) => void;
+}
+
+export default function BookCard({ book, initialSaved = false, onToggleSaved }: BookCardProps) {
+  const { data: session, status } = useSession();
+  const [saved, setSaved] = useState(initialSaved);
+  const [pending, setPending] = useState(false);
+
+  const toggleSaved = async (e: MouseEvent<HTMLButtonElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (!session?.user?.id || pending) return;
+
+    const nextSaved = !saved;
+    setSaved(nextSaved);
+    setPending(true);
+
+    await fetch(`/api/users/${session.user.id}/saved-books`, {
+      method: nextSaved ? 'POST' : 'DELETE',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ bookId: book._id }),
+    });
+
+    setPending(false);
+    onToggleSaved?.(book._id, nextSaved);
+  };
+
   return (
-    <Link
-      href={`/book/${book._id}`}
-      className="block bg-white rounded-xl shadow-sm hover:shadow-md transition-shadow overflow-hidden"
-    >
-      <div className="aspect-[3/4] bg-gray-100 flex items-center justify-center">
+    <Link href={`/book/${book._id}`} className={styles.card}>
+      <div className={styles.coverWrap}>
         {book.coverImage ? (
           // eslint-disable-next-line @next/next/no-img-element
-          <img src={book.coverImage} alt={book.title} className="w-full h-full object-cover" />
+          <img src={book.coverImage} alt={book.title} className={styles.cover} />
         ) : (
-          <span className="text-gray-400 text-sm">Без обкладинки</span>
+          <span className={styles.noCover}>Без обкладинки</span>
+        )}
+        {status === 'authenticated' && (
+          <button
+            type="button"
+            onClick={toggleSaved}
+            disabled={pending}
+            className={styles.saveButton}
+            aria-label={saved ? 'Прибрати зі збережених' : 'Зберегти книгу'}
+          >
+            {saved ? <TbHeartFilled /> : <TbHeart />}
+          </button>
         )}
       </div>
-      <div className="p-3">
-        <h3 className="font-medium truncate">{book.title}</h3>
-        <p className="text-sm text-gray-500 truncate">{book.author}</p>
-        <p className="mt-1 text-brand-purple font-semibold">
+      <div className={styles.info}>
+        <h3 className={styles.title}>{book.title}</h3>
+        <p className={styles.author}>{book.author}</p>
+        <p className={styles.price}>
           {book.price > 0 ? `${book.price} грн` : 'Обмін'}
         </p>
       </div>

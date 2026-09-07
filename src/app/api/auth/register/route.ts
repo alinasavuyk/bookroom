@@ -2,14 +2,15 @@ import { NextResponse } from 'next/server';
 import bcrypt from 'bcryptjs';
 import { connectDB } from '@/lib/mongodb';
 import User from '@/models/User';
+import { isValidEmail, isValidPassword, isNonEmpty } from '@/lib/validation';
 
 // POST /api/auth/register — створити нового користувача
 export async function POST(request: Request) {
   await connectDB();
   const { name, email, password } = await request.json();
 
-  if (!name || !email || !password) {
-    return NextResponse.json({ error: 'Заповни всі поля' }, { status: 400 });
+  if (!isNonEmpty(name) || !isValidEmail(email) || !isValidPassword(password)) {
+    return NextResponse.json({ error: 'Перевір правильність заповнення полів' }, { status: 400 });
   }
 
   const existingUser = await User.findOne({ email });

@@ -2,6 +2,7 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { useSession, signOut } from 'next-auth/react';
+import styles from './Navbar.module.css';
 
 export default function Navbar() {
   const [open, setOpen] = useState(false);
@@ -16,38 +17,35 @@ export default function Navbar() {
   ];
 
   return (
-    <nav className="bg-brand-purple text-white">
-      <div className="max-w-6xl mx-auto px-4 flex items-center justify-between h-16">
-        <Link href="/" className="text-xl font-semibold">Bookroom</Link>
+    <nav className={styles.nav}>
+      <div className={styles.container}>
+        <Link href="/" className={styles.logo}>Bookroom</Link>
 
         {/* Меню для планшета й десктопу */}
-        <div className="hidden md:flex items-center gap-6">
+        <div className={styles.desktopMenu}>
           {links.map((link) => (
-            <Link key={link.href} href={link.href} className="hover:text-brand-purpleSoft transition-colors">
+            <Link key={link.href} href={link.href} className={styles.navLink}>
               {link.label}
             </Link>
           ))}
 
           {/* Показуємо різне залежно від того, чи є сесія */}
           {status === 'authenticated' ? (
-            <div className="flex items-center gap-3">
-              <span className="text-brand-purpleSoft">{session.user.name}</span>
+            <div className={styles.sessionBlock}>
+              <span className={styles.userName}>{session?.user?.name}</span>
               <button
                 onClick={() => signOut({ callbackUrl: '/' })}
-                className="hover:text-brand-purpleSoft transition-colors"
+                className={styles.textButton}
               >
                 Вийти
               </button>
             </div>
           ) : (
-            <div className="flex items-center gap-3">
-              <Link href="/auth/signin" className="hover:text-brand-purpleSoft transition-colors">
+            <div className={styles.sessionBlock}>
+              <Link href="/auth/signin" className={styles.navLink}>
                 Увійти
               </Link>
-              <Link
-                href="/auth/register"
-                className="bg-white text-brand-purple px-3 py-1 rounded-lg font-medium hover:bg-brand-purpleSoft transition-colors"
-              >
+              <Link href="/auth/register" className={styles.registerLink}>
                 Реєстрація
               </Link>
             </div>
@@ -56,7 +54,7 @@ export default function Navbar() {
 
         {/* Кнопка "бургер" для мобільних */}
         <button
-          className="md:hidden text-2xl"
+          className={styles.burgerButton}
           onClick={() => setOpen(!open)}
           aria-label="Відкрити меню"
         >
@@ -66,7 +64,7 @@ export default function Navbar() {
 
       {/* Мобільне випадаюче меню */}
       {open && (
-        <div className="md:hidden flex flex-col bg-brand-purple px-4 pb-4 gap-3">
+        <div className={styles.mobileMenu}>
           {links.map((link) => (
             <Link key={link.href} href={link.href} onClick={() => setOpen(false)}>
               {link.label}
@@ -75,13 +73,13 @@ export default function Navbar() {
 
           {status === 'authenticated' ? (
             <>
-              <span className="text-brand-purpleSoft">{session.user.name}</span>
+              <span className={styles.userName}>{session?.user?.name}</span>
               <button
                 onClick={() => {
                   setOpen(false);
                   signOut({ callbackUrl: '/' });
                 }}
-                className="text-left"
+                className={styles.mobileTextButton}
               >
                 Вийти
               </button>

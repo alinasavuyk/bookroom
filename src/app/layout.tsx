@@ -1,4 +1,5 @@
 import './globals.css';
+import styles from './RootLayout.module.css';
 import type { Metadata } from 'next';
 import type { ReactNode } from 'react';
 import Navbar from '@/components/Navbar';
@@ -15,7 +16,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
       <body>
         <AuthProvider>
           <Navbar />
-          <main className="max-w-6xl mx-auto px-4 py-6">{children}</main>
+          <main className={styles.main}>{children}</main>
         </AuthProvider>
       </body>
     </html>
