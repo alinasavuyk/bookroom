@@ -1,7 +1,6 @@
 import { NextResponse } from 'next/server';
 import mongoose from 'mongoose';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/auth';
+import { auth } from '@/lib/auth';
 import { connectDB } from '@/lib/mongodb';
 import Message from '@/models/Message';
 import User from '@/models/User';
@@ -9,7 +8,7 @@ import User from '@/models/User';
 // GET /api/messages/conversations — список розмов поточного користувача,
 // відсортований за часом останнього повідомлення, з лічильником непрочитаних
 export async function GET() {
-  const session = await getServerSession(authOptions);
+  const session = await auth();
   if (!session?.user?.id) {
     return NextResponse.json({ error: 'Потрібно увійти в акаунт' }, { status: 401 });
   }

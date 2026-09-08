@@ -1,6 +1,5 @@
 import { NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/auth';
+import { auth } from '@/lib/auth';
 import { connectDB } from '@/lib/mongodb';
 import Book from '@/models/Book';
 import { getRatingsMap } from '@/lib/ratings';
@@ -60,7 +59,7 @@ export async function GET(request: Request) {
 
 // POST /api/books — додати нову книгу на продаж/обмін (лише для залогінених)
 export async function POST(request: Request) {
-  const session = await getServerSession(authOptions);
+  const session = await auth();
   if (!session?.user?.id) {
     return NextResponse.json({ error: 'Потрібно увійти в акаунт' }, { status: 401 });
   }

@@ -1,13 +1,12 @@
 import { NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/auth';
+import { auth } from '@/lib/auth';
 import { connectDB } from '@/lib/mongodb';
 import Message from '@/models/Message';
 import { isNonEmpty } from '@/lib/validation';
 
 // GET /api/messages?with=<userId> — історія переписки з конкретним користувачем (лише свої)
 export async function GET(request: Request) {
-  const session = await getServerSession(authOptions);
+  const session = await auth();
   if (!session?.user?.id) {
     return NextResponse.json({ error: 'Потрібно увійти в акаунт' }, { status: 401 });
   }
@@ -36,7 +35,7 @@ export async function GET(request: Request) {
 
 // POST /api/messages — надіслати нове повідомлення (лише для залогінених)
 export async function POST(request: Request) {
-  const session = await getServerSession(authOptions);
+  const session = await auth();
   if (!session?.user?.id) {
     return NextResponse.json({ error: 'Потрібно увійти в акаунт' }, { status: 401 });
   }

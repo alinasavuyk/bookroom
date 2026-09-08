@@ -3,8 +3,7 @@ import Image from 'next/image';
 import { notFound } from 'next/navigation';
 import { cache } from 'react';
 import type { Metadata } from 'next';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/auth';
+import { auth } from '@/lib/auth';
 import { connectDB } from '@/lib/mongodb';
 import Book from '@/models/Book';
 import Comment from '@/models/Comment';
@@ -66,7 +65,7 @@ function renderStars(average: number) {
 
 export default async function BookPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const session = await getServerSession(authOptions);
+  const session = await auth();
   const book = await getBook(id);
   if (!book) notFound();
 

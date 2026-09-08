@@ -1,6 +1,5 @@
 import type { Metadata } from 'next';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/auth';
+import { auth } from '@/lib/auth';
 import { connectDB } from '@/lib/mongodb';
 import Book from '@/models/Book';
 import User from '@/models/User';
@@ -20,7 +19,7 @@ export const metadata: Metadata = {
 
 export default async function HomePage() {
   await connectDB();
-  const session = await getServerSession(authOptions);
+  const session = await auth();
 
   const [recentBooks, currentUser] = await Promise.all([
     Book.find({ status: 'available' }).sort({ createdAt: -1 }).limit(8).lean(),

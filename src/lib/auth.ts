@@ -1,11 +1,13 @@
-import type { NextAuthOptions } from 'next-auth';
+import NextAuth from 'next-auth';
 import CredentialsProvider from 'next-auth/providers/credentials';
 import GoogleProvider from 'next-auth/providers/google';
 import bcrypt from 'bcryptjs';
 import { connectDB } from '@/lib/mongodb';
 import User from '@/models/User';
 
-export const authOptions: NextAuthOptions = {
+export const { handlers, auth, signIn, signOut } = NextAuth({
+  // Vercel довіряє хосту автоматично, але явно вмикаємо і для інших середовищ
+  trustHost: true,
   providers: [
     // Вхід через email + пароль
     CredentialsProvider({
@@ -18,10 +20,10 @@ export const authOptions: NextAuthOptions = {
         if (!credentials?.email || !credentials?.password) return null;
 
         await connectDB();
-        const user = await User.findOne({ email: credentials.email });
+        const user = await User.findOne({ email: credentials.email as string });
         if (!user || !user.password) return null;
 
-        const isValid = await bcrypt.compare(credentials.password, user.password);
+        const isValid = await bcrypt.compare(credentials.password as string, user.password);
         if (!isValid) return null;
 
         return { id: user._id.toString(), name: user.name, email: user.email, image: user.avatar };
@@ -43,4 +45,4 @@ export const authOptions: NextAuthOptions = {
       return session;
     },
   },
-};
+});
