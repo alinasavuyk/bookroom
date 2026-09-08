@@ -102,6 +102,11 @@
   padding: 0.5rem 1rem;
   cursor: pointer;
   font: inherit;
+  transition: background 0.2s;
+}
+
+.cancelButton:hover {
+  background: var(--color-surface);
 }
 
 .sectionHeading {

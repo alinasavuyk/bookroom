@@ -23,11 +23,15 @@ export default function Navbar() {
 
         {/* Меню для планшета й десктопу */}
         <div className={styles.desktopMenu}>
-          {links.map((link) => (
-            <Link key={link.href} href={link.href} className={styles.navLink}>
-              {link.label}
-            </Link>
-          ))}
+          <ul className={styles.navList}>
+            {links.map((link) => (
+              <li key={link.href}>
+                <Link href={link.href} className={styles.navLink}>
+                  {link.label}
+                </Link>
+              </li>
+            ))}
+          </ul>
 
           {/* Показуємо різне залежно від того, чи є сесія */}
           {status === 'authenticated' ? (
@@ -65,11 +69,15 @@ export default function Navbar() {
       {/* Мобільне випадаюче меню */}
       {open && (
         <div className={styles.mobileMenu}>
-          {links.map((link) => (
-            <Link key={link.href} href={link.href} onClick={() => setOpen(false)}>
-              {link.label}
-            </Link>
-          ))}
+          <ul className={styles.mobileNavList}>
+            {links.map((link) => (
+              <li key={link.href}>
+                <Link href={link.href} onClick={() => setOpen(false)} className={styles.navLink}>
+                  {link.label}
+                </Link>
+              </li>
+            ))}
+          </ul>
 
           {status === 'authenticated' ? (
             <>
@@ -86,8 +94,12 @@ export default function Navbar() {
             </>
           ) : (
             <>
-              <Link href="/auth/signin" onClick={() => setOpen(false)}>Увійти</Link>
-              <Link href="/auth/register" onClick={() => setOpen(false)}>Реєстрація</Link>
+              <Link href="/auth/signin" onClick={() => setOpen(false)} className={styles.navLink}>
+                Увійти
+              </Link>
+              <Link href="/auth/register" onClick={() => setOpen(false)} className={styles.navLink}>
+                Реєстрація
+              </Link>
             </>
           )}
         </div>

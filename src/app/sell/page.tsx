@@ -1,61 +1,43 @@
 'use client';
-import { useEffect, useState, FormEvent, ChangeEvent } from 'react';
-import { useSession } from 'next-auth/react';
+import { useState, ChangeEvent } from 'react';
 import { useRouter } from 'next/navigation';
+import { useFormik } from 'formik';
+import * as Yup from 'yup';
+import { useMutation } from '@tanstack/react-query';
 import { isNonEmpty } from '@/lib/validation';
+import { BOOK_GENRES, OTHER_GENRE } from '@/lib/genres';
+import { createBook } from '@/lib/api-client';
+import { useToast } from '@/components/ToastProvider';
+import { useRequireAuth } from '@/lib/useRequireAuth';
 import formStyles from '@/styles/Form.module.css';
 
-interface BookFormData {
-  title: string;
-  author: string;
-  description: string;
-  genre: string;
-  price: number;
-  type: string;
-}
-
-interface FieldErrors {
-  title?: string;
-  author?: string;
-}
+const sellSchema = Yup.object({
+  title: Yup.string().trim().required('Вкажи назву книги'),
+  author: Yup.string().trim().required('Вкажи автора'),
+  genres: Yup.array().of(Yup.string()).min(1, 'Обери хоча б один жанр'),
+});
 
 export default function SellPage() {
-  const { status } = useSession();
+  const status = useRequireAuth();
   const router = useRouter();
+  const { showToast } = useToast();
 
-  const [formData, setFormData] = useState<BookFormData>({
-    title: '',
-    author: '',
-    description: '',
-    genre: 'Роман',
-    price: 0,
-    type: 'sale',
-  });
+  const [customGenre, setCustomGenre] = useState('');
   const [wantsSale, setWantsSale] = useState(false);
   const [wantsExchange, setWantsExchange] = useState(false);
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
-  const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
   const [error, setError] = useState('');
 
-  useEffect(() => {
-    if (status === 'unauthenticated') {
-      router.push('/auth/signin');
-    }
-  }, [status, router]);
+  const mutation = useMutation({
+    mutationFn: createBook,
+  });
 
   const getType = () => {
     if (wantsSale && wantsExchange) return 'both';
     if (wantsSale) return 'sale';
     if (wantsExchange) return 'exchange';
     return 'sale';
-  };
-
-  const validate = (): FieldErrors => {
-    const errors: FieldErrors = {};
-    if (!isNonEmpty(formData.title)) errors.title = 'Вкажи назву книги';
-    if (!isNonEmpty(formData.author)) errors.author = 'Вкажи автора';
-    return errors;
   };
 
   const uploadImage = async (): Promise<string> => {
@@ -71,52 +53,70 @@ export default function SellPage() {
     return result.secure_url; // посилання на завантажене фото
   };
 
-  const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    setError('');
+  const formik = useFormik({
+    initialValues: {
+      title: '',
+      author: '',
+      description: '',
+      price: 0,
+      genres: [] as string[],
+    },
+    validationSchema: sellSchema,
+    onSubmit: async (values) => {
+      setError('');
 
-    const errors = validate();
-    setFieldErrors(errors);
-    if (Object.keys(errors).length > 0) return;
+      const showCustomGenreField = values.genres.includes(OTHER_GENRE);
+      const finalGenres = values.genres.filter((g) => g !== OTHER_GENRE);
+      if (showCustomGenreField && isNonEmpty(customGenre)) {
+        finalGenres.push(customGenre.trim());
+      }
 
-    if (!wantsSale && !wantsExchange) {
-      setError('Оберіть хоча б один варіант: продаж або обмін');
-      return;
-    }
+      if (finalGenres.length === 0) {
+        formik.setFieldError('genres', 'Обери хоча б один жанр');
+        return;
+      }
 
-    let coverImageUrl = '';
-    if (imageFile) {
-      setUploading(true);
-      coverImageUrl = await uploadImage();
-      setUploading(false);
-    }
+      if (!wantsSale && !wantsExchange) {
+        setError('Оберіть хоча б один варіант: продаж або обмін');
+        return;
+      }
 
-    const finalData = {
-      ...formData,
-      type: getType(),
-      coverImage: coverImageUrl,
-    };
+      let coverImageUrl = '';
+      if (imageFile) {
+        setUploading(true);
+        coverImageUrl = await uploadImage();
+        setUploading(false);
+      }
 
-    const res = await fetch('/api/books', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(finalData),
-    });
+      mutation.mutate(
+        { ...values, genres: finalGenres, type: getType(), coverImage: coverImageUrl },
+        {
+          onSuccess: () => {
+            showToast('Книгу додано!');
+            router.push('/profile');
+          },
+          onError: (err: Error) => setError(err.message),
+        }
+      );
+    },
+  });
 
-    if (res.ok) {
-      router.push('/profile');
-    } else {
-      const data = await res.json();
-      setError(data.error || 'Сталася помилка при додаванні книги.');
-    }
+  const toggleGenre = (genre: string) => {
+    const genres = formik.values.genres.includes(genre)
+      ? formik.values.genres.filter((g) => g !== genre)
+      : [...formik.values.genres, genre];
+    formik.setFieldValue('genres', genres);
   };
+
+  const showCustomGenreField = formik.values.genres.includes(OTHER_GENRE);
+  const submitting = formik.isSubmitting || uploading || mutation.isPending;
 
   if (status !== 'authenticated') {
     return null;
   }
 
   return (
-    <form onSubmit={handleSubmit} noValidate className={`${formStyles.form} ${formStyles.formWide}`}>
+    <form onSubmit={formik.handleSubmit} noValidate className={`${formStyles.form} ${formStyles.formWide}`}>
       <h1 className={formStyles.title}>Продати книгу</h1>
 
       {error && <p className={formStyles.errorText}>{error}</p>}
@@ -125,53 +125,80 @@ export default function SellPage() {
         <span className={formStyles.labelText}>Назва книги</span>
         <input
           type="text"
-          value={formData.title}
-          onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+          name="title"
+          value={formik.values.title}
+          onChange={formik.handleChange}
+          onBlur={formik.handleBlur}
           className={formStyles.field}
         />
-        {fieldErrors.title && <p className={formStyles.errorText}>{fieldErrors.title}</p>}
+        {formik.touched.title && formik.errors.title && (
+          <p className={formStyles.errorText}>{formik.errors.title}</p>
+        )}
       </label>
 
       <label className={formStyles.label}>
         <span className={formStyles.labelText}>Автор</span>
         <input
           type="text"
-          value={formData.author}
-          onChange={(e) => setFormData({ ...formData, author: e.target.value })}
+          name="author"
+          value={formik.values.author}
+          onChange={formik.handleChange}
+          onBlur={formik.handleBlur}
           className={formStyles.field}
         />
-        {fieldErrors.author && <p className={formStyles.errorText}>{fieldErrors.author}</p>}
+        {formik.touched.author && formik.errors.author && (
+          <p className={formStyles.errorText}>{formik.errors.author}</p>
+        )}
       </label>
 
       <label className={formStyles.label}>
         <span className={formStyles.labelText}>Опис</span>
         <textarea
-          value={formData.description}
-          onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+          name="description"
+          value={formik.values.description}
+          onChange={formik.handleChange}
           className={formStyles.field}
         />
       </label>
 
-      <label className={formStyles.label}>
-        <span className={formStyles.labelText}>Жанр</span>
-        <select
-          value={formData.genre}
-          onChange={(e) => setFormData({ ...formData, genre: e.target.value })}
-          className={formStyles.field}
-        >
-          <option value="Фантастика">Фантастика</option>
-          <option value="Роман">Роман</option>
-          <option value="Наукова література">Наукова література</option>
-          <option value="Дитяча">Дитяча</option>
-        </select>
-      </label>
+      <div className={formStyles.label}>
+        <span className={formStyles.labelText}>Жанри (можна кілька)</span>
+        <ul className={formStyles.checkboxColumn}>
+          {BOOK_GENRES.map((genre) => (
+            <li key={genre}>
+              <label className={formStyles.checkboxLabel}>
+                <input
+                  type="checkbox"
+                  checked={formik.values.genres.includes(genre)}
+                  onChange={() => toggleGenre(genre)}
+                />
+                {genre}
+              </label>
+            </li>
+          ))}
+        </ul>
+        {showCustomGenreField && (
+          <input
+            type="text"
+            placeholder="Свій жанр"
+            value={customGenre}
+            onChange={(e) => setCustomGenre(e.target.value)}
+            className={formStyles.field}
+            style={{ marginTop: '0.5rem' }}
+          />
+        )}
+        {typeof formik.errors.genres === 'string' && (
+          <p className={formStyles.errorText}>{formik.errors.genres}</p>
+        )}
+      </div>
 
       <label className={formStyles.label}>
         <span className={formStyles.labelText}>Ціна (грн)</span>
         <input
           type="number"
-          value={formData.price}
-          onChange={(e) => setFormData({ ...formData, price: Number(e.target.value) })}
+          name="price"
+          value={formik.values.price}
+          onChange={formik.handleChange}
           className={formStyles.field}
         />
       </label>
@@ -184,27 +211,31 @@ export default function SellPage() {
           className={formStyles.field}
         />
       </label>
-      <div className={formStyles.checkboxRow}>
-        <label className={formStyles.checkboxLabel}>
-          <input
-            type="checkbox"
-            checked={wantsSale}
-            onChange={(e) => setWantsSale(e.target.checked)}
-          />
-          Продаж
-        </label>
+      <ul className={formStyles.checkboxRow}>
+        <li>
+          <label className={formStyles.checkboxLabel}>
+            <input
+              type="checkbox"
+              checked={wantsSale}
+              onChange={(e) => setWantsSale(e.target.checked)}
+            />
+            Продаж
+          </label>
+        </li>
 
-        <label className={formStyles.checkboxLabel}>
-          <input
-            type="checkbox"
-            checked={wantsExchange}
-            onChange={(e) => setWantsExchange(e.target.checked)}
-          />
-          Обмін
-        </label>
-      </div>
-      <button type="submit" disabled={uploading} className={formStyles.submitButton}>
-        {uploading ? 'Завантаження фото...' : 'Додати книгу'}
+        <li>
+          <label className={formStyles.checkboxLabel}>
+            <input
+              type="checkbox"
+              checked={wantsExchange}
+              onChange={(e) => setWantsExchange(e.target.checked)}
+            />
+            Обмін
+          </label>
+        </li>
+      </ul>
+      <button type="submit" disabled={submitting} className={formStyles.submitButton}>
+        {uploading ? 'Завантаження фото...' : submitting ? 'Додавання...' : 'Додати книгу'}
       </button>
     </form>
   );

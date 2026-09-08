@@ -1,73 +1,63 @@
 'use client';
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { useSession } from 'next-auth/react';
+import { useQuery } from '@tanstack/react-query';
 import BookCard from '@/components/BookCard';
-import { BookSummary } from '@/types/models';
+import Loader from '@/components/Loader';
+import CatalogFilters, { CatalogFilterValues, EMPTY_CATALOG_FILTERS } from '@/components/CatalogFilters';
+import { fetchBooks, fetchUserProfile } from '@/lib/api-client';
 import styles from './CatalogPage.module.css';
 import gridStyles from '@/styles/BookGrid.module.css';
 
 export default function CatalogPage() {
   const { data: session } = useSession();
-  const [books, setBooks] = useState<BookSummary[]>([]);
-  const [savedIds, setSavedIds] = useState<Set<string>>(new Set());
   const [search, setSearch] = useState('');
-  const [genre, setGenre] = useState('');
-  const [loading, setLoading] = useState(true);
+  const [filters, setFilters] = useState<CatalogFilterValues>(EMPTY_CATALOG_FILTERS);
 
-  useEffect(() => {
-    const params = new URLSearchParams();
-    if (search) params.set('search', search);
-    if (genre) params.set('genre', genre);
+  const { data: books = [], isLoading } = useQuery({
+    queryKey: ['books', search, filters],
+    queryFn: () => fetchBooks(search, filters),
+  });
 
-    setLoading(true);
-    fetch(`/api/books?${params.toString()}`)
-      .then((res) => res.json())
-      .then((data) => setBooks(data))
-      .finally(() => setLoading(false));
-  }, [search, genre]);
+  const { data: profile } = useQuery({
+    queryKey: ['user', session?.user?.id],
+    queryFn: () => fetchUserProfile(session!.user!.id),
+    enabled: !!session?.user?.id,
+  });
 
-  useEffect(() => {
-    if (!session?.user?.id) return;
-    fetch(`/api/users/${session.user.id}`)
-      .then((res) => res.json())
-      .then((data) => setSavedIds(new Set((data.savedBooks ?? []).map((b: { _id: string }) => b._id))));
-  }, [session]);
+  const savedIds = new Set((profile?.savedBooks ?? []).map((b) => b._id));
 
   return (
     <div>
       <h1 className={styles.title}>Каталог книг</h1>
 
-      {/* Фільтри: стовпчиком на телефоні, в ряд на планшеті+ */}
-      <div className={styles.filters}>
-        <input
-          type="text"
-          placeholder="Пошук за назвою..."
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          className={styles.search}
-        />
-        <select
-          value={genre}
-          onChange={(e) => setGenre(e.target.value)}
-          className={styles.select}
-        >
-          <option value="">Усі жанри</option>
-          <option value="Фантастика">Фантастика</option>
-          <option value="Роман">Роман</option>
-          <option value="Наукова література">Наукова література</option>
-          <option value="Дитяча">Дитяча</option>
-        </select>
-      </div>
+      <input
+        type="text"
+        placeholder="Пошук за назвою..."
+        value={search}
+        onChange={(e) => setSearch(e.target.value)}
+        className={styles.search}
+      />
 
-      {loading ? (
-        <p className={styles.loading}>Завантаження...</p>
-      ) : (
-        <div className={gridStyles.grid}>
-          {books.map((book) => (
-            <BookCard key={book._id} book={book} initialSaved={savedIds.has(book._id)} />
-          ))}
+      <div className={styles.layout}>
+        <CatalogFilters onApply={setFilters} />
+
+        <div className={styles.results}>
+          {isLoading ? (
+            <Loader />
+          ) : books.length > 0 ? (
+            <ul className={gridStyles.grid}>
+              {books.map((book) => (
+                <li key={book._id}>
+                  <BookCard book={book} initialSaved={savedIds.has(book._id)} />
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className={gridStyles.empty}>Нічого не знайдено</p>
+          )}
         </div>
-      )}
+      </div>
     </div>
   );
 }

@@ -1,58 +1,44 @@
 'use client';
-import { useState, FormEvent } from 'react';
+import { useState } from 'react';
+import { useFormik } from 'formik';
+import * as Yup from 'yup';
 import { signIn } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { isValidEmail, isNonEmpty } from '@/lib/validation';
 import PasswordInput from '@/components/PasswordInput';
 import formStyles from '@/styles/Form.module.css';
 
-interface FieldErrors {
-  email?: string;
-  password?: string;
-}
+const signInSchema = Yup.object({
+  email: Yup.string().trim().email('Введи коректний email').required('Введи коректний email'),
+  password: Yup.string().trim().required('Введи пароль'),
+});
 
 export default function SignInPage() {
   const router = useRouter();
-  const [formData, setFormData] = useState({ email: '', password: '' });
-  const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
   const [error, setError] = useState('');
-  const [loading, setLoading] = useState(false);
 
-  const validate = (): FieldErrors => {
-    const errors: FieldErrors = {};
-    if (!isValidEmail(formData.email)) errors.email = 'Введи коректний email';
-    if (!isNonEmpty(formData.password)) errors.password = 'Введи пароль';
-    return errors;
-  };
+  const formik = useFormik({
+    initialValues: { email: '', password: '' },
+    validationSchema: signInSchema,
+    onSubmit: async (values) => {
+      setError('');
 
-  const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    setError('');
+      const result = await signIn('credentials', {
+        email: values.email,
+        password: values.password,
+        redirect: false,
+      });
 
-    const errors = validate();
-    setFieldErrors(errors);
-    if (Object.keys(errors).length > 0) return;
-
-    setLoading(true);
-
-    const result = await signIn('credentials', {
-      email: formData.email,
-      password: formData.password,
-      redirect: false,
-    });
-
-    setLoading(false);
-
-    if (result?.error) {
-      setError('Невірний email або пароль.');
-    } else {
-      router.push('/');
-    }
-  };
+      if (result?.error) {
+        setError('Невірний email або пароль.');
+      } else {
+        router.push('/');
+      }
+    },
+  });
 
   return (
-    <form onSubmit={handleSubmit} noValidate className={`${formStyles.form} ${formStyles.formNarrow}`}>
+    <form onSubmit={formik.handleSubmit} noValidate className={`${formStyles.form} ${formStyles.formNarrow}`}>
       <h1 className={formStyles.title}>Вхід</h1>
 
       {error && <p className={formStyles.errorText}>{error}</p>}
@@ -61,25 +47,33 @@ export default function SignInPage() {
         <span className={formStyles.labelText}>Email</span>
         <input
           type="email"
-          value={formData.email}
-          onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+          name="email"
+          value={formik.values.email}
+          onChange={formik.handleChange}
+          onBlur={formik.handleBlur}
           className={formStyles.field}
         />
-        {fieldErrors.email && <p className={formStyles.errorText}>{fieldErrors.email}</p>}
+        {formik.touched.email && formik.errors.email && (
+          <p className={formStyles.errorText}>{formik.errors.email}</p>
+        )}
       </label>
 
       <label className={formStyles.label}>
         <span className={formStyles.labelText}>Пароль</span>
         <PasswordInput
-          value={formData.password}
-          onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+          name="password"
+          value={formik.values.password}
+          onChange={formik.handleChange}
+          onBlur={formik.handleBlur}
           className={formStyles.field}
         />
-        {fieldErrors.password && <p className={formStyles.errorText}>{fieldErrors.password}</p>}
+        {formik.touched.password && formik.errors.password && (
+          <p className={formStyles.errorText}>{formik.errors.password}</p>
+        )}
       </label>
 
-      <button type="submit" disabled={loading} className={formStyles.submitButton}>
-        {loading ? 'Входимо...' : 'Увійти'}
+      <button type="submit" disabled={formik.isSubmitting} className={formStyles.submitButton}>
+        {formik.isSubmitting ? 'Входимо...' : 'Увійти'}
       </button>
 
       <p className={formStyles.footerText}>

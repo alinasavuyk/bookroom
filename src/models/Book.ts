@@ -4,7 +4,7 @@ export interface IBook {
   title: string;
   author: string;
   description: string;
-  genre: string;
+  genres: string[];
   coverImage: string;
   price: number;
   type: 'sale' | 'exchange' | 'both';
@@ -17,7 +17,7 @@ const BookSchema = new Schema<IBook>(
     title: { type: String, required: true },
     author: { type: String, required: true },
     description: { type: String, default: '' },
-    genre: { type: String, default: 'Інше' },
+    genres: { type: [String], default: [] },
     coverImage: { type: String, default: '' },
     price: { type: Number, default: 0 }, // 0 = тільки обмін
     type: { type: String, enum: ['sale', 'exchange', 'both'], default: 'sale' },

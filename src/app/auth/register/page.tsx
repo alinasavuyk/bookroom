@@ -1,71 +1,51 @@
 'use client';
-import { useState, FormEvent } from 'react';
+import { useState } from 'react';
+import { useFormik } from 'formik';
+import * as Yup from 'yup';
 import { signIn } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { isValidEmail, isValidPassword, isNonEmpty } from '@/lib/validation';
+import { registerUser } from '@/lib/api-client';
 import PasswordInput from '@/components/PasswordInput';
 import formStyles from '@/styles/Form.module.css';
 
-interface FieldErrors {
-  name?: string;
-  email?: string;
-  password?: string;
-}
+const registerSchema = Yup.object({
+  name: Yup.string().trim().required("Вкажи ім'я"),
+  email: Yup.string().trim().email('Введи коректний email').required('Введи коректний email'),
+  password: Yup.string().trim().min(6, 'Пароль має містити щонайменше 6 символів').required('Введи пароль'),
+});
 
 export default function RegisterPage() {
   const router = useRouter();
-  const [formData, setFormData] = useState({
-    name: '',
-    email: '',
-    password: '',
-  });
-  const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
   const [error, setError] = useState('');
 
-  const validate = (): FieldErrors => {
-    const errors: FieldErrors = {};
-    if (!isNonEmpty(formData.name)) errors.name = "Вкажи ім'я";
-    if (!isValidEmail(formData.email)) errors.email = 'Введи коректний email';
-    if (!isValidPassword(formData.password)) errors.password = 'Пароль має містити щонайменше 6 символів';
-    return errors;
-  };
+  const formik = useFormik({
+    initialValues: { name: '', email: '', password: '' },
+    validationSchema: registerSchema,
+    onSubmit: async (values) => {
+      setError('');
+      try {
+        await registerUser(values);
 
-  const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    setError('');
+        const signInResult = await signIn('credentials', {
+          email: values.email,
+          password: values.password,
+          redirect: false,
+        });
 
-    const errors = validate();
-    setFieldErrors(errors);
-    if (Object.keys(errors).length > 0) return;
-
-    const res = await fetch('/api/auth/register', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(formData),
-    });
-
-    const data = await res.json();
-
-    if (res.ok) {
-      const signInResult = await signIn('credentials', {
-        email: formData.email,
-        password: formData.password,
-        redirect: false,
-      });
-
-      if (signInResult?.error) {
-        router.push('/auth/signin');
-      } else {
-        router.push('/profile');
+        if (signInResult?.error) {
+          router.push('/auth/signin');
+        } else {
+          router.push('/profile');
+        }
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Сталася помилка. Спробуй ще раз.');
       }
-    } else {
-      setError(data.error || 'Сталася помилка. Спробуй ще раз.');
-    }
-  };
+    },
+  });
 
   return (
-    <form onSubmit={handleSubmit} noValidate className={`${formStyles.form} ${formStyles.formNarrow}`}>
+    <form onSubmit={formik.handleSubmit} noValidate className={`${formStyles.form} ${formStyles.formNarrow}`}>
       <h1 className={formStyles.title}>Реєстрація</h1>
 
       {error && <p className={formStyles.errorText}>{error}</p>}
@@ -74,36 +54,48 @@ export default function RegisterPage() {
         <span className={formStyles.labelText}>Ім&apos;я</span>
         <input
           type="text"
-          value={formData.name}
-          onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+          name="name"
+          value={formik.values.name}
+          onChange={formik.handleChange}
+          onBlur={formik.handleBlur}
           className={formStyles.field}
         />
-        {fieldErrors.name && <p className={formStyles.errorText}>{fieldErrors.name}</p>}
+        {formik.touched.name && formik.errors.name && (
+          <p className={formStyles.errorText}>{formik.errors.name}</p>
+        )}
       </label>
 
       <label className={formStyles.label}>
         <span className={formStyles.labelText}>Email</span>
         <input
           type="email"
-          value={formData.email}
-          onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+          name="email"
+          value={formik.values.email}
+          onChange={formik.handleChange}
+          onBlur={formik.handleBlur}
           className={formStyles.field}
         />
-        {fieldErrors.email && <p className={formStyles.errorText}>{fieldErrors.email}</p>}
+        {formik.touched.email && formik.errors.email && (
+          <p className={formStyles.errorText}>{formik.errors.email}</p>
+        )}
       </label>
 
       <label className={formStyles.label}>
         <span className={formStyles.labelText}>Пароль</span>
         <PasswordInput
-          value={formData.password}
-          onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+          name="password"
+          value={formik.values.password}
+          onChange={formik.handleChange}
+          onBlur={formik.handleBlur}
           className={formStyles.field}
         />
-        {fieldErrors.password && <p className={formStyles.errorText}>{fieldErrors.password}</p>}
+        {formik.touched.password && formik.errors.password && (
+          <p className={formStyles.errorText}>{formik.errors.password}</p>
+        )}
       </label>
 
-      <button type="submit" className={formStyles.submitButton}>
-        Зареєструватись
+      <button type="submit" disabled={formik.isSubmitting} className={formStyles.submitButton}>
+        {formik.isSubmitting ? 'Реєстрація...' : 'Зареєструватись'}
       </button>
 
       <p className={formStyles.footerText}>

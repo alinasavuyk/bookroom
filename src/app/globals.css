@@ -1,3 +1,5 @@
+@import 'modern-normalize';
+
 :root {
   --color-blue: #2e4e9e;
   --color-blue-light: #5d7fc7;
@@ -11,10 +13,9 @@
   --color-surface: #f3f4f6;
   --color-error: #ef4444;
 
-  --breakpoint-sm: 480px;
-  --breakpoint-md: 768px;
-  --breakpoint-lg: 1024px;
-  --breakpoint-xl: 1280px;
+  /* Mobile-first брейкпоінти (довідково — у медіа-запитах CSS-змінні непридатні,
+     тому в .module.css файлах ці самі значення прописані буквально):
+     mobile: 320px+, tablet: 768px+, desktop: 1440px+ */
 }
 
 * {
