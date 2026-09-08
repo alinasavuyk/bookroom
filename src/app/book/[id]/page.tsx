@@ -24,8 +24,13 @@ const getBook = cache(async (id: string) => {
   }
 });
 
-export async function generateMetadata({ params }: { params: { id: string } }): Promise<Metadata> {
-  const book = await getBook(params.id);
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}): Promise<Metadata> {
+  const { id } = await params;
+  const book = await getBook(id);
   if (!book) return { title: 'Книгу не знайдено' };
 
   const bookData = JSON.parse(JSON.stringify(book)) as BookDetail;
@@ -59,15 +64,16 @@ function renderStars(average: number) {
   return '★'.repeat(filled) + '☆'.repeat(5 - filled);
 }
 
-export default async function BookPage({ params }: { params: { id: string } }) {
+export default async function BookPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
   const session = await getServerSession(authOptions);
-  const book = await getBook(params.id);
+  const book = await getBook(id);
   if (!book) notFound();
 
   const bookData = JSON.parse(JSON.stringify(book)) as BookDetail;
   const isOwner = session?.user?.id === bookData.owner._id;
 
-  const ratingDocs = await Comment.find({ book: params.id }).select('rating').lean();
+  const ratingDocs = await Comment.find({ book: id }).select('rating').lean();
   const ratings = ratingDocs.map((c) => c.rating).filter((r): r is number => typeof r === 'number');
   const avgRating = ratings.length > 0 ? ratings.reduce((a, b) => a + b, 0) / ratings.length : 0;
   const reviewCount = ratingDocs.length;

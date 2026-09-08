@@ -161,7 +161,13 @@ export default function ProfilePage() {
       {!editing ? (
         <div className={styles.header}>
           {profile.avatar ? (
-            <Image src={profile.avatar} alt={profile.name} width={96} height={96} className={styles.avatarLarge} />
+            <Image
+              src={profile.avatar}
+              alt={profile.name}
+              width={96}
+              height={96}
+              className={styles.avatarLarge}
+            />
           ) : (
             <div className={styles.avatarPlaceholder}>{profile.name.charAt(0).toUpperCase() || '?'}</div>
           )}
