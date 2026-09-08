@@ -1,5 +1,8 @@
 'use client';
-import { useState, FormEvent, ChangeEvent } from 'react';
+import { useEffect, useState, FormEvent, ChangeEvent } from 'react';
+import { useSession } from 'next-auth/react';
+import { useRouter } from 'next/navigation';
+import { isNonEmpty } from '@/lib/validation';
 import formStyles from '@/styles/Form.module.css';
 
 interface BookFormData {
@@ -11,7 +14,15 @@ interface BookFormData {
   type: string;
 }
 
+interface FieldErrors {
+  title?: string;
+  author?: string;
+}
+
 export default function SellPage() {
+  const { status } = useSession();
+  const router = useRouter();
+
   const [formData, setFormData] = useState<BookFormData>({
     title: '',
     author: '',
@@ -24,12 +35,27 @@ export default function SellPage() {
   const [wantsExchange, setWantsExchange] = useState(false);
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
+  const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    if (status === 'unauthenticated') {
+      router.push('/auth/signin');
+    }
+  }, [status, router]);
 
   const getType = () => {
     if (wantsSale && wantsExchange) return 'both';
     if (wantsSale) return 'sale';
     if (wantsExchange) return 'exchange';
     return 'sale';
+  };
+
+  const validate = (): FieldErrors => {
+    const errors: FieldErrors = {};
+    if (!isNonEmpty(formData.title)) errors.title = 'Вкажи назву книги';
+    if (!isNonEmpty(formData.author)) errors.author = 'Вкажи автора';
+    return errors;
   };
 
   const uploadImage = async (): Promise<string> => {
@@ -47,9 +73,14 @@ export default function SellPage() {
 
   const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+    setError('');
+
+    const errors = validate();
+    setFieldErrors(errors);
+    if (Object.keys(errors).length > 0) return;
 
     if (!wantsSale && !wantsExchange) {
-      alert('Оберіть хоча б один варіант: продаж або обмін');
+      setError('Оберіть хоча б один варіант: продаж або обмін');
       return;
     }
 
@@ -73,14 +104,23 @@ export default function SellPage() {
     });
 
     if (res.ok) {
-      alert(`Книгу "${formData.title}" успішно додано!`);
+      router.push('/profile');
     } else {
-      alert('Сталася помилка при додаванні книги.');
+      const data = await res.json();
+      setError(data.error || 'Сталася помилка при додаванні книги.');
     }
   };
 
+  if (status !== 'authenticated') {
+    return null;
+  }
+
   return (
-    <form onSubmit={handleSubmit} className={`${formStyles.form} ${formStyles.formWide}`}>
+    <form onSubmit={handleSubmit} noValidate className={`${formStyles.form} ${formStyles.formWide}`}>
+      <h1 className={formStyles.title}>Продати книгу</h1>
+
+      {error && <p className={formStyles.errorText}>{error}</p>}
+
       <label className={formStyles.label}>
         <span className={formStyles.labelText}>Назва книги</span>
         <input
@@ -88,8 +128,8 @@ export default function SellPage() {
           value={formData.title}
           onChange={(e) => setFormData({ ...formData, title: e.target.value })}
           className={formStyles.field}
-          required
         />
+        {fieldErrors.title && <p className={formStyles.errorText}>{fieldErrors.title}</p>}
       </label>
 
       <label className={formStyles.label}>
@@ -99,8 +139,8 @@ export default function SellPage() {
           value={formData.author}
           onChange={(e) => setFormData({ ...formData, author: e.target.value })}
           className={formStyles.field}
-          required
         />
+        {fieldErrors.author && <p className={formStyles.errorText}>{fieldErrors.author}</p>}
       </label>
 
       <label className={formStyles.label}>

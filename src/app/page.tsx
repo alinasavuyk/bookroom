@@ -8,6 +8,9 @@ import { BookSummary } from '@/types/models';
 import styles from './HomePage.module.css';
 import gridStyles from '@/styles/BookGrid.module.css';
 
+// Сторінка залежить від БД і сесії користувача — не можна генерувати статично під час білда
+export const dynamic = 'force-dynamic';
+
 export default async function HomePage() {
   await connectDB();
   const session = await getServerSession(authOptions);
