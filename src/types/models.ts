@@ -36,3 +36,22 @@ export interface CommentDTO {
   author: CommentAuthor;
   createdAt: string;
 }
+
+export interface MessageDTO {
+  _id: string;
+  sender: string;
+  receiver: string;
+  book?: string;
+  text: string;
+  read: boolean;
+  createdAt: string;
+}
+
+export interface ConversationDTO {
+  userId: string;
+  name: string;
+  avatar?: string;
+  lastMessage: string;
+  lastMessageAt: string;
+  unreadCount: number;
+}

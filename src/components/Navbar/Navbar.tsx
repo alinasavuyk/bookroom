@@ -2,11 +2,21 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { useSession, signOut } from 'next-auth/react';
+import { useQuery } from '@tanstack/react-query';
+import { fetchUnreadCount } from '@/lib/api-client';
 import styles from './Navbar.module.css';
 
 export default function Navbar() {
   const [open, setOpen] = useState(false);
   const { data: session, status } = useSession(); // status: 'loading' | 'authenticated' | 'unauthenticated'
+
+  const { data: unread } = useQuery({
+    queryKey: ['unread-count'],
+    queryFn: fetchUnreadCount,
+    enabled: status === 'authenticated',
+    refetchInterval: 20000,
+  });
+  const unreadCount = unread?.count ?? 0;
 
   const links = [
     { href: '/', label: 'Головна' },
@@ -28,6 +38,9 @@ export default function Navbar() {
               <li key={link.href}>
                 <Link href={link.href} className={styles.navLink}>
                   {link.label}
+                  {link.href === '/chat' && unreadCount > 0 && (
+                    <span className={styles.unreadBadge}>{unreadCount}</span>
+                  )}
                 </Link>
               </li>
             ))}
@@ -63,6 +76,7 @@ export default function Navbar() {
           aria-label="Відкрити меню"
         >
           ☰
+          {unreadCount > 0 && <span className={styles.burgerBadge} />}
         </button>
       </div>
 
@@ -74,6 +88,9 @@ export default function Navbar() {
               <li key={link.href}>
                 <Link href={link.href} onClick={() => setOpen(false)} className={styles.navLink}>
                   {link.label}
+                  {link.href === '/chat' && unreadCount > 0 && (
+                    <span className={styles.unreadBadge}>{unreadCount}</span>
+                  )}
                 </Link>
               </li>
             ))}

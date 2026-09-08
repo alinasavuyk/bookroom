@@ -143,7 +143,10 @@ export default async function BookPage({ params }: { params: Promise<{ id: strin
           <p className={styles.availability}>{STATUS_LABEL[bookData.status]}</p>
 
           {!isOwner && (
-            <Link href="/chat" className={styles.ctaButton}>
+            <Link
+              href={`/chat?with=${bookData.owner._id}&book=${bookData._id}`}
+              className={styles.ctaButton}
+            >
               Написати власнику
             </Link>
           )}

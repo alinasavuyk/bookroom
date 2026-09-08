@@ -1,4 +1,4 @@
-import { BookSummary, CommentDTO } from '@/types/models';
+import { BookSummary, CommentDTO, MessageDTO, ConversationDTO } from '@/types/models';
 import { CatalogFilterValues } from '@/components/CatalogFilters';
 
 interface UserProfileResponse {
@@ -96,5 +96,30 @@ export async function changePassword(userId: string, currentPassword: string, ne
     body: JSON.stringify({ currentPassword, newPassword }),
   });
   if (!res.ok) return parseError(res, 'Не вдалося змінити пароль');
+  return res.json();
+}
+
+export async function fetchConversations(): Promise<ConversationDTO[]> {
+  const res = await fetch('/api/messages/conversations');
+  return res.json();
+}
+
+export async function fetchUnreadCount(): Promise<{ count: number }> {
+  const res = await fetch('/api/messages/unread-count');
+  return res.json();
+}
+
+export async function fetchMessages(withUserId: string): Promise<MessageDTO[]> {
+  const res = await fetch(`/api/messages?with=${withUserId}`);
+  return res.json();
+}
+
+export async function sendMessage(receiver: string, text: string, book?: string) {
+  const res = await fetch('/api/messages', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ receiver, text, book }),
+  });
+  if (!res.ok) return parseError(res, 'Не вдалося надіслати повідомлення');
   return res.json();
 }
