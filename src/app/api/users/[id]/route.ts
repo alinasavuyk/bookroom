@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { auth } from '@/lib/auth';
 import { connectDB } from '@/lib/mongodb';
 import User from '@/models/User';
 import { isNonEmpty } from '@/lib/validation';
@@ -12,10 +13,19 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
   return NextResponse.json(user);
 }
 
-// PATCH /api/users/:id — оновити профіль (ім'я, аватар)
+// PATCH /api/users/:id — оновити профіль (ім'я, аватар) — лише свій
 export async function PATCH(request: Request, { params }: { params: Promise<{ id: string }> }) {
-  await connectDB();
+  const session = await auth();
+  if (!session?.user?.id) {
+    return NextResponse.json({ error: 'Потрібно увійти в акаунт' }, { status: 401 });
+  }
+
   const { id } = await params;
+  if (session.user.id !== id) {
+    return NextResponse.json({ error: 'Немає доступу до цього профілю' }, { status: 403 });
+  }
+
+  await connectDB();
   const data = await request.json();
   delete data.password; // пароль міняємо окремим захищеним роутом
 

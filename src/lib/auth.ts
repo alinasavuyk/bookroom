@@ -40,6 +40,31 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     signIn: '/auth/signin',
   },
   callbacks: {
+    async jwt({ token, user, account }) {
+      if (user && account?.provider === 'credentials') {
+        // Звичайний вхід email+пароль — id вже наш, із колекції User
+        token.sub = user.id;
+      } else if (account && account.provider !== 'credentials') {
+        // Вхід через соцмережу — знаходимо чи створюємо користувача
+        // в нашій же колекції User (за email), щоб профіль/обране/чат
+        // працювали однаково незалежно від способу входу
+        await connectDB();
+        const email = token.email;
+        if (email) {
+          let dbUser = await User.findOne({ email });
+          if (!dbUser) {
+            dbUser = await User.create({
+              name: token.name || 'Користувач',
+              email,
+              avatar: token.picture || '',
+              provider: account.provider,
+            });
+          }
+          token.sub = dbUser._id.toString();
+        }
+      }
+      return token;
+    },
     async session({ session, token }) {
       if (session.user) session.user.id = token.sub as string;
       return session;

@@ -7,6 +7,7 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { registerUser } from '@/lib/api-client';
 import PasswordInput from '@/components/PasswordInput';
+import SocialAuthButtons from '@/components/SocialAuthButtons';
 import formStyles from '@/styles/Form.module.css';
 
 const registerSchema = Yup.object({
@@ -97,6 +98,8 @@ export default function RegisterPage() {
       <button type="submit" disabled={formik.isSubmitting} className={formStyles.submitButton}>
         {formik.isSubmitting ? 'Реєстрація...' : 'Зареєструватись'}
       </button>
+
+      <SocialAuthButtons />
 
       <p className={formStyles.footerText}>
         Вже маєш акаунт?{' '}

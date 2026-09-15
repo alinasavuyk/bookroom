@@ -6,6 +6,7 @@ import { signIn } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import PasswordInput from '@/components/PasswordInput';
+import SocialAuthButtons from '@/components/SocialAuthButtons';
 import formStyles from '@/styles/Form.module.css';
 
 const signInSchema = Yup.object({
@@ -75,6 +76,8 @@ export default function SignInPage() {
       <button type="submit" disabled={formik.isSubmitting} className={formStyles.submitButton}>
         {formik.isSubmitting ? 'Входимо...' : 'Увійти'}
       </button>
+
+      <SocialAuthButtons />
 
       <p className={formStyles.footerText}>
         Немає акаунту?{' '}

@@ -6,11 +6,13 @@
 
 ## Технології
 
-- **Next.js 14** (App Router) + **React** — фронтенд і серверні компоненти
-- **Node.js** — бекенд через API-роути Next.js
+- **Next.js 15** (App Router) + **React 19** + **TypeScript** — фронтенд і серверні компоненти
 - **MongoDB** + **Mongoose** — база даних
-- **NextAuth.js** — авторизація через email/пароль та Google
-- **Tailwind CSS** — стилі, повністю адаптивний дизайн (телефон / планшет / десктоп)
+- **Auth.js (next-auth v5)** — авторизація через email/пароль та Google
+- **CSS Modules** — стилі, повністю адаптивний дизайн (mobile-first: 320 / 768 / 1440)
+- **TanStack Query (React Query)** — кешування й синхронізація серверних даних на клієнті
+- **Formik + Yup** — форми та валідація
+- **Cloudinary** — зберігання й оптимізація зображень (обкладинки, аватари)
 
 ## Структура проєкту
 
@@ -18,31 +20,31 @@
 bookroom/
 ├── src/
 │   ├── app/
-│   │   ├── page.jsx              # Головна сторінка
-│   │   ├── layout.jsx            # Кореневий layout з навігацією
-│   │   ├── catalog/page.jsx      # Каталог книг з фільтрами
-│   │   ├── book/[id]/page.jsx    # Сторінка окремої книги (заглушка — доробити)
-│   │   ├── profile/page.jsx      # Профіль користувача (заглушка — доробити)
-│   │   ├── chat/page.jsx         # Чат між користувачами (заглушка — доробити)
-│   │   ├── sell/page.jsx         # Форма додавання книги (заглушка — доробити)
+│   │   ├── page.tsx                    # Головна сторінка
+│   │   ├── layout.tsx                  # Кореневий layout з навігацією
+│   │   ├── error.tsx / not-found.tsx   # Глобальні сторінки помилки й 404
+│   │   ├── catalog/page.tsx            # Каталог книг із фільтрами (жанр, тип, ціна)
+│   │   ├── book/[id]/page.tsx          # Сторінка книги: опис, рецензії, кнопка звʼязку з власником
+│   │   ├── profile/page.tsx            # Профіль: перегляд/редагування, зміна пароля, мої й збережені книги
+│   │   ├── chat/page.tsx               # Чат між користувачами зі списком розмов
+│   │   ├── sell/page.tsx               # Форма додавання книги (кілька жанрів, фото)
+│   │   ├── auth/register, auth/signin  # Реєстрація і вхід
 │   │   └── api/
-│   │       ├── auth/[...nextauth]/route.js
-│   │       ├── books/route.js         # GET (список+фільтри), POST (створити)
-│   │       ├── books/[id]/route.js    # GET, PATCH, DELETE однієї книги
-│   │       ├── users/[id]/route.js    # GET, PATCH профілю
-│   │       ├── comments/route.js      # GET, POST коментарів
-│   │       └── messages/route.js      # GET, POST повідомлень чату
-│   ├── models/
-│   │   ├── User.js
-│   │   ├── Book.js
-│   │   ├── Comment.js
-│   │   └── Message.js
-│   ├── lib/mongodb.js            # Підключення до MongoDB
-│   └── components/
-│       ├── Navbar.jsx            # Адаптивна навігація з бургер-меню
-│       └── BookCard.jsx          # Картка книги для каталогу
+│   │       ├── auth/[...nextauth]/route.ts
+│   │       ├── auth/register/route.ts
+│   │       ├── books/route.ts              # GET (список+фільтри), POST (створити)
+│   │       ├── books/[id]/route.ts         # GET, PATCH, DELETE — лише власник
+│   │       ├── users/[id]/route.ts         # GET, PATCH — лише свій профіль
+│   │       ├── users/[id]/password/route.ts
+│   │       ├── users/[id]/saved-books/route.ts
+│   │       ├── comments/route.ts           # GET, POST рецензій
+│   │       └── messages/, messages/conversations/, messages/unread-count/
+│   ├── models/          # User, Book, Comment, Message (Mongoose)
+│   ├── lib/              # mongodb, auth, api-client, validation, genres, ratings, cloudinaryLoader
+│   ├── components/       # кожен компонент у власній папці (Navbar, BookCard, SaveButton, ...)
+│   └── types/            # спільні TypeScript-типи
 ├── package.json
-├── tailwind.config.js
+├── next.config.js
 └── .env.example
 ```
 
@@ -56,7 +58,8 @@ bookroom/
 2. Скопіюй `.env.example` в `.env.local` і заповни:
    - `MONGODB_URI` — рядок підключення з MongoDB Atlas (безкоштовний кластер підходить)
    - `NEXTAUTH_SECRET` — будь-який випадковий рядок (можна згенерувати: `openssl rand -base64 32`)
-   - `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` — з Google Cloud Console, якщо потрібен вхід через Google
+   - `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` — опційно, з Google Cloud Console
+   - `NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME` / `NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET` — з [Cloudinary](https://cloudinary.com/) (безкоштовного акаунту достатньо), потрібні для завантаження обкладинок і аватарів
 
 3. Запусти проєкт:
    ```bash
@@ -67,17 +70,20 @@ bookroom/
 
 ## Що вже готово
 
-- ✅ Моделі даних (User, Book, Comment, Message)
-- ✅ Усі основні API-роути (CRUD для книг, коментарів, повідомлень, профілю)
-- ✅ Авторизація email + Google
+- ✅ Реєстрація та вхід (email/пароль, Google налаштований у коді)
 - ✅ Головна сторінка зі стрічкою нових книг
-- ✅ Каталог з пошуком і фільтром за жанром
+- ✅ Каталог з пошуком і фільтрами (жанр — включно з кількома одразу, тип оголошення, ціна)
+- ✅ Сторінка книги: повний опис, рецензії з рейтингом, кнопка звʼязку з власником
+- ✅ Профіль: перегляд і редагування (ім'я, фото, "про себе"), зміна пароля, список власних і збережених книг
+- ✅ Продаж книги: форма з кількома жанрами (включно з довільним "Інші"), завантаженням фото, вибором продаж/обмін
+- ✅ Обране — кнопка "зберегти" на кожній картці книги
+- ✅ Чат між користувачами: список розмов, непрочитані повідомлення, бейдж у навігації
 - ✅ Адаптивна навігація (бургер-меню на мобільних)
+- ✅ Toast-повідомлення, індикатори завантаження, `generateMetadata`/OG-теги
+- ✅ Усі API-роути, що змінюють дані, захищені перевіркою сесії та належності
 
 ## Що варто доробити далі
 
-- Сторінку окремої книги з коментарями та кнопкою "купити/обміняти"
-- Сторінку профілю користувача зі списком його книг
-- Чат між користувачами (можна почати без WebSocket — просто polling кожні кілька секунд)
-- Форму додавання нової книги (`/sell`) із завантаженням зображення
-- Захист API-роутів через перевірку сесії (наразі будь-хто може створити книгу — додай перевірку `getServerSession` перед `POST`)
+- Тести (проєкт наразі без покриття тестами)
+- Кнопку входу через Google в інтерфейсі (провайдер налаштований, але в UI відсутній)
+- Пагінацію каталогу (зараз завантажується весь список одразу)

@@ -1,1 +1,1 @@
-export { TbHeart, TbHeartFilled, TbEye, TbEyeOff, TbStarFilled, TbMessageCircle } from 'react-icons/tb';
+export { TbHeart, TbHeartFilled, TbEye, TbEyeOff, TbStarFilled, TbMessageCircle, TbBrandGoogle } from 'react-icons/tb';

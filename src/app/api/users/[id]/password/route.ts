@@ -1,13 +1,23 @@
 import { NextResponse } from 'next/server';
 import bcrypt from 'bcryptjs';
+import { auth } from '@/lib/auth';
 import { connectDB } from '@/lib/mongodb';
 import User from '@/models/User';
 import { isValidPassword, isNonEmpty } from '@/lib/validation';
 
-// POST /api/users/:id/password — змінити пароль (з перевіркою поточного)
+// POST /api/users/:id/password — змінити пароль (з перевіркою поточного) — лише свій
 export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
-  await connectDB();
+  const session = await auth();
+  if (!session?.user?.id) {
+    return NextResponse.json({ error: 'Потрібно увійти в акаунт' }, { status: 401 });
+  }
+
   const { id } = await params;
+  if (session.user.id !== id) {
+    return NextResponse.json({ error: 'Немає доступу до цього профілю' }, { status: 403 });
+  }
+
+  await connectDB();
   const { currentPassword, newPassword } = await request.json();
 
   if (!isNonEmpty(currentPassword) || !isValidPassword(newPassword)) {
