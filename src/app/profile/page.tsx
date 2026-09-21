@@ -56,8 +56,12 @@ function ProfilePageContent() {
   const [showWelcome, setShowWelcome] = useState(false);
 
   useEffect(() => {
-    if (searchParams.get('welcome') === '1') {
+    const hasNewGoogleUserCookie = document.cookie.includes('google-new-user=1');
+    if (searchParams.get('welcome') === '1' || hasNewGoogleUserCookie) {
       setShowWelcome(true);
+      if (hasNewGoogleUserCookie) {
+        document.cookie = 'google-new-user=; path=/; max-age=0';
+      }
       router.replace('/profile');
     }
   }, [searchParams, router]);

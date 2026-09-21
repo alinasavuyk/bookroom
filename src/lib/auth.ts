@@ -78,6 +78,10 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
               avatar: token.picture || '',
               provider: account.provider,
             });
+            // Позначаємо для клієнта, що акаунт щойно створено — /profile
+            // покаже welcome-модалку так само, як після реєстрації email+паролем
+            const cookieStore = await cookies();
+            cookieStore.set('google-new-user', '1', { path: '/', maxAge: 60, sameSite: 'lax' });
           }
           token.sub = dbUser._id.toString();
         }
