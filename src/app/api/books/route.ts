@@ -6,7 +6,7 @@ import { getRatingsMap } from '@/lib/ratings';
 import { isNonEmpty } from '@/lib/validation';
 import { OTHER_GENRE, STANDARD_BOOK_GENRES } from '@/lib/genres';
 
-// GET /api/books?genre=&type=&search=&owner=&minPrice=&maxPrice= — каталог з фільтрами
+// GET /api/books?genre=&type=&search=&owner=&minPrice=&maxPrice=&page=&limit= — каталог з фільтрами
 export async function GET(request: Request) {
   await connectDB();
   const { searchParams } = new URL(request.url);
@@ -16,6 +16,7 @@ export async function GET(request: Request) {
   const owner = searchParams.get('owner');
   const minPrice = searchParams.get('minPrice');
   const maxPrice = searchParams.get('maxPrice');
+  const pageParam = searchParams.get('page');
 
   const query: Record<string, unknown> = {};
   if (genre) {
@@ -45,7 +46,17 @@ export async function GET(request: Request) {
     query.price = priceFilter;
   }
 
-  const books = await Book.find(query).populate('owner', 'name avatar').sort({ createdAt: -1 }).lean();
+  // Пагінацію застосовуємо лише коли явно передали page (каталог) — щоб не
+  // ламати виклики без неї, як-от "мої книги" на сторінці профілю
+  const BOOKS_PER_PAGE = 12;
+  const isPaginated = pageParam !== null;
+  const page = Math.max(1, Number(pageParam) || 1);
+
+  const booksQuery = Book.find(query).populate('owner', 'name avatar').sort({ createdAt: -1 });
+  if (isPaginated) {
+    booksQuery.skip((page - 1) * BOOKS_PER_PAGE).limit(BOOKS_PER_PAGE);
+  }
+  const books = await booksQuery.lean();
   const ratingsMap = await getRatingsMap(books.map((b) => b._id));
 
   const booksWithRatings = books.map((b) => ({
@@ -54,7 +65,16 @@ export async function GET(request: Request) {
     reviewCount: ratingsMap.get(b._id.toString())?.reviewCount ?? 0,
   }));
 
-  return NextResponse.json(booksWithRatings);
+  if (!isPaginated) {
+    return NextResponse.json(booksWithRatings);
+  }
+
+  const totalCount = await Book.countDocuments(query);
+  return NextResponse.json({
+    books: booksWithRatings,
+    totalCount,
+    totalPages: Math.max(1, Math.ceil(totalCount / BOOKS_PER_PAGE)),
+  });
 }
 
 // POST /api/books — додати нову книгу на продаж/обмін (лише для залогінених)

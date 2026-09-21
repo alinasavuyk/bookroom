@@ -13,13 +13,24 @@ async function parseError(res: Response, fallback: string): Promise<never> {
   throw new Error(data.error || fallback);
 }
 
-export async function fetchBooks(search: string, filters: CatalogFilterValues): Promise<BookSummary[]> {
+interface PaginatedBooksResponse {
+  books: BookSummary[];
+  totalCount: number;
+  totalPages: number;
+}
+
+export async function fetchBooks(
+  search: string,
+  filters: CatalogFilterValues,
+  page: number
+): Promise<PaginatedBooksResponse> {
   const params = new URLSearchParams();
   if (search) params.set('search', search);
   if (filters.genres.length > 0) params.set('genre', filters.genres.join(','));
   if (filters.types.length > 0) params.set('type', filters.types.join(','));
   if (filters.minPrice) params.set('minPrice', filters.minPrice);
   if (filters.maxPrice) params.set('maxPrice', filters.maxPrice);
+  params.set('page', String(page));
   const res = await fetch(`/api/books?${params.toString()}`);
   return res.json();
 }

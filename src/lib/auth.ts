@@ -2,6 +2,7 @@ import NextAuth from 'next-auth';
 import CredentialsProvider from 'next-auth/providers/credentials';
 import GoogleProvider from 'next-auth/providers/google';
 import bcrypt from 'bcryptjs';
+import { cookies } from 'next/headers';
 import { connectDB } from '@/lib/mongodb';
 import User from '@/models/User';
 
@@ -40,6 +41,24 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     signIn: '/auth/signin',
   },
   callbacks: {
+    async signIn({ user, account }) {
+      if (account && account.provider !== 'credentials') {
+        await connectDB();
+        const email = user.email;
+        if (!email) return false;
+
+        const existingUser = await User.findOne({ email });
+        if (!existingUser) {
+          const cookieStore = await cookies();
+          const intent = cookieStore.get('google-auth-intent')?.value;
+          if (intent === 'signin') {
+            // Намагались увійти, а акаунту з таким Google-email нема — не створюємо
+            return '/auth/signin?error=NoAccount';
+          }
+        }
+      }
+      return true;
+    },
     async jwt({ token, user, account }) {
       if (user && account?.provider === 'credentials') {
         // Звичайний вхід email+пароль — id вже наш, із колекції User

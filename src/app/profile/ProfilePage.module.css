@@ -114,3 +114,23 @@
   font-weight: 600;
   margin: 2rem 0 1rem;
 }
+
+.welcomeTitle {
+  font-size: 1.5rem;
+  font-weight: 700;
+  text-align: center;
+  margin: 0 0 0.5rem;
+}
+
+.welcomeText {
+  color: var(--color-text-muted);
+  font-size: 1.05rem;
+  text-align: center;
+  margin: 0 0 1.25rem;
+}
+
+.welcomeActions {
+  display: flex;
+  justify-content: center;
+  gap: 0.75rem;
+}

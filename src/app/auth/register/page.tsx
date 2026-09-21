@@ -37,7 +37,7 @@ export default function RegisterPage() {
         if (signInResult?.error) {
           router.push('/auth/signin');
         } else {
-          router.push('/profile');
+          router.push('/profile?welcome=1');
         }
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Сталася помилка. Спробуй ще раз.');
@@ -99,7 +99,7 @@ export default function RegisterPage() {
         {formik.isSubmitting ? 'Реєстрація...' : 'Зареєструватись'}
       </button>
 
-      <SocialAuthButtons />
+      <SocialAuthButtons mode="register" />
 
       <p className={formStyles.footerText}>
         Вже маєш акаунт?{' '}

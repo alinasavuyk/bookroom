@@ -1,12 +1,14 @@
 'use client';
-import { useState, ChangeEvent } from 'react';
+import { useState, useEffect, ChangeEvent, Suspense } from 'react';
 import { useSession } from 'next-auth/react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import Image from 'next/image';
 import { useFormik } from 'formik';
 import * as Yup from 'yup';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import BookCard from '@/components/BookCard';
 import Loader from '@/components/Loader';
+import Modal from '@/components/Modal';
 import PasswordInput from '@/components/PasswordInput';
 import { fetchUserProfile, fetchBooksByOwner, updateProfile, changePassword } from '@/lib/api-client';
 import { useRequireAuth } from '@/lib/useRequireAuth';
@@ -35,11 +37,30 @@ const profileSchema = Yup.object({
 });
 
 export default function ProfilePage() {
+  return (
+    <Suspense fallback={<Loader />}>
+      <ProfilePageContent />
+    </Suspense>
+  );
+}
+
+function ProfilePageContent() {
   const { data: session } = useSession();
   const status = useRequireAuth();
   const { showToast } = useToast();
   const queryClient = useQueryClient();
+  const router = useRouter();
+  const searchParams = useSearchParams();
   const userId = session?.user?.id;
+
+  const [showWelcome, setShowWelcome] = useState(false);
+
+  useEffect(() => {
+    if (searchParams.get('welcome') === '1') {
+      setShowWelcome(true);
+      router.replace('/profile');
+    }
+  }, [searchParams, router]);
 
   const { data: profile, isLoading: profileLoading } = useQuery({
     queryKey: ['user', userId],
@@ -123,6 +144,13 @@ export default function ProfilePage() {
     setEditing(true);
   };
 
+  const dismissWelcome = () => setShowWelcome(false);
+
+  const handleFillNow = () => {
+    setShowWelcome(false);
+    startEditing();
+  };
+
   const cancelEditing = () => {
     formik.resetForm();
     setAvatarFile(null);
@@ -156,6 +184,23 @@ export default function ProfilePage() {
 
   return (
     <div>
+      {showWelcome && (
+        <Modal onClose={dismissWelcome}>
+          <h2 className={styles.welcomeTitle}>Ласкаво просимо до Bookroom!</h2>
+          <p className={styles.welcomeText}>
+            Хочеш одразу додати фото й розповісти про себе, чи зробиш це пізніше?
+          </p>
+          <div className={styles.welcomeActions}>
+            <button type="button" onClick={handleFillNow} className={formStyles.submitButton}>
+              Заповнити зараз
+            </button>
+            <button type="button" onClick={dismissWelcome} className={styles.cancelButton}>
+              Пізніше
+            </button>
+          </div>
+        </Modal>
+      )}
+
       {message && <p className={styles.message}>{message}</p>}
 
       {!editing ? (

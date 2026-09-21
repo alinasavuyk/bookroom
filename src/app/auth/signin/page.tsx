@@ -1,12 +1,13 @@
 'use client';
-import { useState } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 import { useFormik } from 'formik';
 import * as Yup from 'yup';
 import { signIn } from 'next-auth/react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import PasswordInput from '@/components/PasswordInput';
 import SocialAuthButtons from '@/components/SocialAuthButtons';
+import Loader from '@/components/Loader';
 import formStyles from '@/styles/Form.module.css';
 
 const signInSchema = Yup.object({
@@ -15,8 +16,23 @@ const signInSchema = Yup.object({
 });
 
 export default function SignInPage() {
+  return (
+    <Suspense fallback={<Loader />}>
+      <SignInPageContent />
+    </Suspense>
+  );
+}
+
+function SignInPageContent() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [error, setError] = useState('');
+
+  useEffect(() => {
+    if (searchParams.get('error') === 'NoAccount') {
+      setError('У тебе ще немає акаунту з цим Google-акаунтом. Спробуй зареєструватись.');
+    }
+  }, [searchParams]);
 
   const formik = useFormik({
     initialValues: { email: '', password: '' },
@@ -77,7 +93,7 @@ export default function SignInPage() {
         {formik.isSubmitting ? 'Входимо...' : 'Увійти'}
       </button>
 
-      <SocialAuthButtons />
+      <SocialAuthButtons mode="signin" />
 
       <p className={formStyles.footerText}>
         Немає акаунту?{' '}
