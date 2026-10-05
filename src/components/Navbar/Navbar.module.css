@@ -14,17 +14,21 @@
 }
 
 .logo {
-  font-size: 1.25rem;
-  font-weight: 600;
+  font-family: var(--font-serif);
+  font-style: italic;
+  font-size: 1.4rem;
+  font-weight: 700;
 }
 
+/* Повне меню — лише на десктопі (1440px+). На планшеті й мобільному
+   показуємо лише бургер, решту пунктів ховаємо в бургер-меню */
 .desktopMenu {
   display: none;
   align-items: center;
   gap: 1.5rem;
 }
 
-@media (min-width: 768px) {
+@media (min-width: 1440px) {
   .desktopMenu {
     display: flex;
   }
@@ -71,23 +75,6 @@
   gap: 0.75rem;
 }
 
-.userName {
-  color: var(--color-blue-soft);
-}
-
-.textButton {
-  background: none;
-  border: none;
-  color: inherit;
-  font: inherit;
-  cursor: pointer;
-  transition: color 0.2s;
-}
-
-.textButton:hover {
-  color: var(--color-blue-soft);
-}
-
 .registerLink {
   background: var(--color-white);
   color: var(--color-blue);
@@ -100,6 +87,32 @@
 
 .registerLink:hover {
   background: var(--color-blue-soft);
+}
+
+.loginLink {
+  border: 1px solid var(--color-white);
+  color: var(--color-white);
+  padding: 0.25rem 0.75rem;
+  border-radius: 0.5rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.loginLink:hover {
+  background: var(--color-blue-light);
+}
+
+.mobileActions {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+@media (min-width: 1440px) {
+  .mobileActions {
+    display: none;
+  }
 }
 
 .burgerButton {
@@ -126,12 +139,6 @@
   opacity: 0.8;
 }
 
-@media (min-width: 768px) {
-  .burgerButton {
-    display: none;
-  }
-}
-
 .mobileMenu {
   display: flex;
   flex-direction: column;
@@ -149,22 +156,8 @@
   padding: 0;
 }
 
-@media (min-width: 768px) {
+@media (min-width: 1440px) {
   .mobileMenu {
     display: none;
   }
-}
-
-.mobileTextButton {
-  background: none;
-  border: none;
-  color: inherit;
-  font: inherit;
-  text-align: left;
-  cursor: pointer;
-  transition: color 0.2s;
-}
-
-.mobileTextButton:hover {
-  color: var(--color-blue-soft);
 }

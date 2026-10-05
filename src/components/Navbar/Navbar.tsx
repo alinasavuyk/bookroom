@@ -1,10 +1,26 @@
 'use client';
 import { useState } from 'react';
 import Link from 'next/link';
-import { useSession, signOut } from 'next-auth/react';
+import { useSession } from 'next-auth/react';
 import { useQuery } from '@tanstack/react-query';
 import { fetchUnreadCount } from '@/lib/api-client';
+import UserBar from '@/components/UserBar';
+import SellLink from '@/components/SellLink';
+import CartWidget from '@/components/CartWidget';
 import styles from './Navbar.module.css';
+
+const GUEST_LINKS = [
+  { href: '/catalog', label: 'Каталог' },
+  { href: '/sell', label: 'Продати книгу' },
+];
+
+const AUTHED_LINKS = [
+  { href: '/', label: 'Головна' },
+  { href: '/catalog', label: 'Каталог' },
+  { href: '/sell', label: 'Продати книгу' },
+  { href: '/chat', label: 'Повідомлення' },
+  { href: '/profile', label: 'Профіль' },
+];
 
 export default function Navbar() {
   const [open, setOpen] = useState(false);
@@ -18,48 +34,55 @@ export default function Navbar() {
   });
   const unreadCount = unread?.count ?? 0;
 
-  const links = [
-    { href: '/', label: 'Головна' },
-    { href: '/catalog', label: 'Каталог' },
-    { href: '/sell', label: 'Продати книгу' },
-    { href: '/chat', label: 'Повідомлення' },
-    { href: '/profile', label: 'Профіль' },
-  ];
+  const links = status === 'authenticated' ? AUTHED_LINKS : GUEST_LINKS;
+
+  const renderNavLink = (link: { href: string; label: string }) => {
+    const label = (
+      <>
+        {link.label}
+        {link.href === '/chat' && unreadCount > 0 && (
+          <span className={styles.unreadBadge}>{unreadCount}</span>
+        )}
+      </>
+    );
+
+    if (link.href === '/sell') {
+      return (
+        <SellLink className={styles.navLink} onNavigate={() => setOpen(false)}>
+          {label}
+        </SellLink>
+      );
+    }
+
+    return (
+      <Link href={link.href} onClick={() => setOpen(false)} className={styles.navLink}>
+        {label}
+      </Link>
+    );
+  };
 
   return (
     <nav className={styles.nav}>
       <div className={styles.container}>
         <Link href="/" className={styles.logo}>Bookroom</Link>
 
-        {/* Меню для планшета й десктопу */}
+        {/* Повне меню — лише на десктопі (1440px+) */}
         <div className={styles.desktopMenu}>
           <ul className={styles.navList}>
             {links.map((link) => (
-              <li key={link.href}>
-                <Link href={link.href} className={styles.navLink}>
-                  {link.label}
-                  {link.href === '/chat' && unreadCount > 0 && (
-                    <span className={styles.unreadBadge}>{unreadCount}</span>
-                  )}
-                </Link>
-              </li>
+              <li key={link.href}>{renderNavLink(link)}</li>
             ))}
           </ul>
 
           {/* Показуємо різне залежно від того, чи є сесія */}
-          {status === 'authenticated' ? (
+          {status === 'authenticated' && session?.user ? (
             <div className={styles.sessionBlock}>
-              <span className={styles.userName}>{session?.user?.name}</span>
-              <button
-                onClick={() => signOut({ callbackUrl: '/' })}
-                className={styles.textButton}
-              >
-                Вийти
-              </button>
+              <CartWidget />
+              <UserBar name={session.user.name ?? ''} avatar={session.user.image} />
             </div>
           ) : (
             <div className={styles.sessionBlock}>
-              <Link href="/auth/signin" className={styles.navLink}>
+              <Link href="/auth/signin" className={styles.loginLink}>
                 Увійти
               </Link>
               <Link href="/auth/register" className={styles.registerLink}>
@@ -69,15 +92,18 @@ export default function Navbar() {
           )}
         </div>
 
-        {/* Кнопка "бургер" для мобільних */}
-        <button
-          className={styles.burgerButton}
-          onClick={() => setOpen(!open)}
-          aria-label="Відкрити меню"
-        >
-          ☰
-          {unreadCount > 0 && <span className={styles.burgerBadge} />}
-        </button>
+        {/* Кошик і бургер — завжди видимі поза десктопним меню */}
+        <div className={styles.mobileActions}>
+          <CartWidget />
+          <button
+            className={styles.burgerButton}
+            onClick={() => setOpen(!open)}
+            aria-label="Відкрити меню"
+          >
+            ☰
+            {unreadCount > 0 && <span className={styles.burgerBadge} />}
+          </button>
+        </div>
       </div>
 
       {/* Мобільне випадаюче меню */}
@@ -85,36 +111,18 @@ export default function Navbar() {
         <div className={styles.mobileMenu}>
           <ul className={styles.mobileNavList}>
             {links.map((link) => (
-              <li key={link.href}>
-                <Link href={link.href} onClick={() => setOpen(false)} className={styles.navLink}>
-                  {link.label}
-                  {link.href === '/chat' && unreadCount > 0 && (
-                    <span className={styles.unreadBadge}>{unreadCount}</span>
-                  )}
-                </Link>
-              </li>
+              <li key={link.href}>{renderNavLink(link)}</li>
             ))}
           </ul>
 
-          {status === 'authenticated' ? (
-            <>
-              <span className={styles.userName}>{session?.user?.name}</span>
-              <button
-                onClick={() => {
-                  setOpen(false);
-                  signOut({ callbackUrl: '/' });
-                }}
-                className={styles.mobileTextButton}
-              >
-                Вийти
-              </button>
-            </>
+          {status === 'authenticated' && session?.user ? (
+            <UserBar name={session.user.name ?? ''} avatar={session.user.image} onNavigate={() => setOpen(false)} />
           ) : (
             <>
-              <Link href="/auth/signin" onClick={() => setOpen(false)} className={styles.navLink}>
+              <Link href="/auth/signin" onClick={() => setOpen(false)} className={styles.loginLink}>
                 Увійти
               </Link>
-              <Link href="/auth/register" onClick={() => setOpen(false)} className={styles.navLink}>
+              <Link href="/auth/register" onClick={() => setOpen(false)} className={styles.registerLink}>
                 Реєстрація
               </Link>
             </>

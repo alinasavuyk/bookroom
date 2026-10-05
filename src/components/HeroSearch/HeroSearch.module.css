@@ -1,0 +1,31 @@
+.form {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  max-width: 32rem;
+  margin: 0 auto var(--space-6);
+  background: var(--color-white);
+  border-radius: var(--radius-pill);
+  padding: var(--space-3) var(--space-5);
+  box-shadow: var(--shadow-md);
+}
+
+.icon {
+  flex-shrink: 0;
+  color: var(--color-text-muted);
+  font-size: 1.1rem;
+}
+
+.input {
+  flex: 1;
+  min-width: 0;
+  border: none;
+  outline: none;
+  font: inherit;
+  color: var(--color-text);
+  background: transparent;
+}
+
+.input::placeholder {
+  color: var(--color-text-faint);
+}

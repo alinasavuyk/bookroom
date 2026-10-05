@@ -69,9 +69,16 @@
   gap: 1.5rem;
 }
 
+.overviewTop {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
 @media (min-width: 768px) {
-  .overview {
+  .overviewTop {
     flex-direction: row;
+    align-items: flex-start;
   }
 }
 
@@ -132,7 +139,7 @@
 
 .descriptionHeading {
   font-weight: 600;
-  margin: 1rem 0 0.25rem;
+  margin: 0 0 0.25rem;
 }
 
 .description {
@@ -175,12 +182,17 @@
 }
 
 .ctaButton {
-  display: block;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
   text-align: center;
   background: var(--color-blue);
   color: var(--color-white);
+  border: none;
   padding: 0.65rem;
   border-radius: 0.5rem;
+  font: inherit;
   font-weight: 600;
   cursor: pointer;
   transition: background 0.2s;
@@ -188,6 +200,27 @@
 
 .ctaButton:hover {
   background: var(--color-blue-light);
+}
+
+.ctaButtonOutline {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  text-align: center;
+  background: none;
+  border: 1px solid var(--color-blue);
+  color: var(--color-blue);
+  padding: 0.6rem;
+  border-radius: 0.5rem;
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.ctaButtonOutline:hover {
+  background: var(--color-surface);
 }
 
 .ownerCard {

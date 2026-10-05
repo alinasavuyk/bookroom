@@ -8,6 +8,7 @@ export interface IUser {
   bio: string;
   provider: 'credentials' | 'google';
   savedBooks: mongoose.Types.ObjectId[];
+  cart: mongoose.Types.ObjectId[];
   rating: number;
 }
 
@@ -20,6 +21,7 @@ const UserSchema = new Schema<IUser>(
     bio: { type: String, default: '' },
     provider: { type: String, enum: ['credentials', 'google'], default: 'credentials' },
     savedBooks: [{ type: Schema.Types.ObjectId, ref: 'Book' }],
+    cart: [{ type: Schema.Types.ObjectId, ref: 'Book' }],
     rating: { type: Number, default: 0 },
   },
   { timestamps: true }

@@ -1,3 +1,10 @@
+export interface BookOwner {
+  _id: string;
+  name: string;
+  avatar?: string;
+  rating?: number;
+}
+
 export interface BookSummary {
   _id: string;
   title: string;
@@ -6,20 +13,14 @@ export interface BookSummary {
   price: number;
   avgRating?: number;
   reviewCount?: number;
-}
-
-export interface BookOwner {
-  _id: string;
-  name: string;
-  avatar?: string;
-  rating?: number;
+  type: 'sale' | 'exchange' | 'both';
+  status: 'available' | 'reserved' | 'sold';
+  owner?: BookOwner;
 }
 
 export interface BookDetail extends BookSummary {
   description: string;
   genres: string[];
-  type: 'sale' | 'exchange' | 'both';
-  status: 'available' | 'reserved' | 'sold';
   owner: BookOwner;
 }
 
@@ -37,13 +38,42 @@ export interface CommentDTO {
   createdAt: string;
 }
 
+export interface MessageBookRef {
+  _id: string;
+  title: string;
+  coverImage?: string;
+  price: number;
+}
+
 export interface MessageDTO {
   _id: string;
   sender: string;
   receiver: string;
-  book?: string;
+  book?: MessageBookRef;
+  offeredBook?: MessageBookRef;
+  offerStatus?: 'pending' | 'accepted' | 'declined';
   text: string;
   read: boolean;
+  createdAt: string;
+}
+
+export interface OrderParty {
+  _id: string;
+  name: string;
+  avatar?: string;
+}
+
+export interface OrderDTO {
+  _id: string;
+  bookTitle: string;
+  bookCoverImage?: string;
+  price: number;
+  city: string;
+  warehouse: string;
+  paymentMethod: 'cash' | 'card' | 'cod';
+  status: 'active' | 'confirmed' | 'cancelled';
+  buyer: OrderParty;
+  seller: OrderParty;
   createdAt: string;
 }
 

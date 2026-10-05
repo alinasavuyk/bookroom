@@ -9,6 +9,8 @@ import Book from '@/models/Book';
 import Comment from '@/models/Comment';
 import CommentsSection from '@/components/CommentsSection';
 import SaveButton from '@/components/SaveButton';
+import CartButton from '@/components/CartButton';
+import ExchangeOfferButton from '@/components/ExchangeOfferButton';
 import BookTabs from '@/components/BookTabs';
 import { BookDetail } from '@/types/models';
 import styles from './BookIdPage.module.css';
@@ -71,6 +73,9 @@ export default async function BookPage({ params }: { params: Promise<{ id: strin
 
   const bookData = JSON.parse(JSON.stringify(book)) as BookDetail;
   const isOwner = session?.user?.id === bookData.owner._id;
+  const canBuy = !isOwner && bookData.status === 'available' && (bookData.type === 'sale' || bookData.type === 'both');
+  const canExchange =
+    !isOwner && bookData.status === 'available' && (bookData.type === 'exchange' || bookData.type === 'both');
 
   const ratingDocs = await Comment.find({ book: id }).select('rating').lean();
   const ratings = ratingDocs.map((c) => c.rating).filter((r): r is number => typeof r === 'number');
@@ -79,42 +84,44 @@ export default async function BookPage({ params }: { params: Promise<{ id: strin
 
   const overview = (
     <div className={styles.overview}>
-      <div className={styles.coverWrap}>
-        {bookData.coverImage ? (
-          <Image
-            src={bookData.coverImage}
-            alt={bookData.title}
-            fill
-            sizes="14rem"
-            className={styles.cover}
-          />
-        ) : (
-          <span className={styles.noCover}>Без обкладинки</span>
-        )}
-        <SaveButton bookId={bookData._id} className={styles.saveButton} />
-      </div>
-
-      <div className={styles.meta}>
-        <div className={styles.metaRow}>
-          <span className={styles.metaLabel}>Автор</span>
-          <span className={styles.metaValue}>{bookData.author}</span>
-        </div>
-        <div className={styles.metaRow}>
-          <span className={styles.metaLabel}>Жанри</span>
-          <span className={styles.metaValue}>{(bookData.genres ?? []).join(', ') || 'Не вказано'}</span>
-        </div>
-        <div className={styles.metaRow}>
-          <span className={styles.metaLabel}>Формат</span>
-          <span className={styles.metaValue}>{TYPE_LABEL[bookData.type]}</span>
+      <div className={styles.overviewTop}>
+        <div className={styles.coverWrap}>
+          {bookData.coverImage ? (
+            <Image
+              src={bookData.coverImage}
+              alt={bookData.title}
+              fill
+              sizes="14rem"
+              className={styles.cover}
+            />
+          ) : (
+            <span className={styles.noCover}>Без обкладинки</span>
+          )}
+          <SaveButton bookId={bookData._id} className={styles.saveButton} />
         </div>
 
-        {bookData.description && (
-          <>
-            <p className={styles.descriptionHeading}>Опис</p>
-            <p className={styles.description}>{bookData.description}</p>
-          </>
-        )}
+        <div className={styles.meta}>
+          <div className={styles.metaRow}>
+            <span className={styles.metaLabel}>Автор</span>
+            <span className={styles.metaValue}>{bookData.author}</span>
+          </div>
+          <div className={styles.metaRow}>
+            <span className={styles.metaLabel}>Жанри</span>
+            <span className={styles.metaValue}>{(bookData.genres ?? []).join(', ') || 'Не вказано'}</span>
+          </div>
+          <div className={styles.metaRow}>
+            <span className={styles.metaLabel}>Формат</span>
+            <span className={styles.metaValue}>{TYPE_LABEL[bookData.type]}</span>
+          </div>
+        </div>
       </div>
+
+      {bookData.description && (
+        <div>
+          <p className={styles.descriptionHeading}>Опис</p>
+          <p className={styles.description}>{bookData.description}</p>
+        </div>
+      )}
     </div>
   );
 
@@ -138,13 +145,30 @@ export default async function BookPage({ params }: { params: Promise<{ id: strin
         </div>
 
         <aside className={styles.sidebar}>
-          <p className={styles.price}>{bookData.price > 0 ? `${bookData.price} грн` : 'Обмін'}</p>
+          <p className={styles.price}>{bookData.price > 0 ? `${bookData.price} ₴` : 'Обмін'}</p>
           <p className={styles.availability}>{STATUS_LABEL[bookData.status]}</p>
+
+          {canBuy && (
+            <CartButton bookId={bookData._id} ownerId={bookData.owner._id} className={styles.ctaButton}>
+              Додати в кошик
+            </CartButton>
+          )}
+
+          {canExchange && (
+            <ExchangeOfferButton
+              bookId={bookData._id}
+              bookTitle={bookData.title}
+              owner={bookData.owner}
+              className={styles.ctaButtonOutline}
+            >
+              Запропонувати обмін
+            </ExchangeOfferButton>
+          )}
 
           {!isOwner && (
             <Link
               href={`/chat?with=${bookData.owner._id}&book=${bookData._id}`}
-              className={styles.ctaButton}
+              className={styles.ctaButtonOutline}
             >
               Написати власнику
             </Link>

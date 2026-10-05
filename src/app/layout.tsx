@@ -2,10 +2,19 @@ import './globals.css';
 import styles from './RootLayout.module.css';
 import type { Metadata } from 'next';
 import type { ReactNode } from 'react';
+import { PT_Serif } from 'next/font/google';
 import Navbar from '@/components/Navbar';
+import Footer from '@/components/Footer';
 import AuthProvider from '@/components/AuthProvider';
 import ToastProvider from '@/components/ToastProvider';
 import QueryProvider from '@/components/QueryProvider';
+
+const ptSerif = PT_Serif({
+  subsets: ['latin', 'cyrillic'],
+  weight: ['400', '700'],
+  style: ['normal', 'italic'],
+  variable: '--font-serif',
+});
 
 export const metadata: Metadata = {
   title: {
@@ -24,13 +33,14 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
-    <html lang="uk">
+    <html lang="uk" className={ptSerif.variable}>
       <body>
         <QueryProvider>
           <AuthProvider>
             <ToastProvider>
               <Navbar />
               <main className={styles.main}>{children}</main>
+              <Footer />
             </ToastProvider>
           </AuthProvider>
         </QueryProvider>

@@ -8,7 +8,10 @@ import { isNonEmpty } from '@/lib/validation';
 export async function GET(request: Request, { params }: { params: Promise<{ id: string }> }) {
   await connectDB();
   const { id } = await params;
-  const user = await User.findById(id).populate('savedBooks').select('-password');
+  const user = await User.findById(id)
+    .populate({ path: 'savedBooks', populate: { path: 'owner', select: 'name avatar' } })
+    .populate({ path: 'cart', populate: { path: 'owner', select: 'name avatar' } })
+    .select('-password');
   if (!user) return NextResponse.json({ error: 'Користувача не знайдено' }, { status: 404 });
   return NextResponse.json(user);
 }

@@ -4,7 +4,13 @@ import { useSearchParams } from 'next/navigation';
 import { useSession } from 'next-auth/react';
 import Image from 'next/image';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { fetchConversations, fetchMessages, fetchUserProfile, sendMessage } from '@/lib/api-client';
+import {
+  fetchConversations,
+  fetchMessages,
+  fetchUserProfile,
+  sendMessage,
+  respondToExchangeOffer,
+} from '@/lib/api-client';
 import { useRequireAuth } from '@/lib/useRequireAuth';
 import { useToast } from '@/components/ToastProvider';
 import Loader from '@/components/Loader';
@@ -86,6 +92,16 @@ function ChatPageContent() {
     if (!text.trim() || !selectedUserId) return;
     mutation.mutate(text.trim());
   };
+
+  const offerMutation = useMutation({
+    mutationFn: ({ id, action }: { id: string; action: 'accept' | 'decline' }) =>
+      respondToExchangeOffer(id, action),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['messages', selectedUserId] });
+      queryClient.invalidateQueries({ queryKey: ['conversations'] });
+    },
+    onError: (err: Error) => showToast(err.message, 'error'),
+  });
 
   const activeConversation = conversations.find((c) => c.userId === selectedUserId);
   const headerName = activeConversation?.name ?? selectedUser?.name ?? '';
@@ -177,6 +193,9 @@ function ChatPageContent() {
                 <ul className={styles.messageList}>
                   {messages.map((message) => {
                     const isMine = message.sender === meId;
+                    const isOffer = !!message.offeredBook;
+                    const canRespond = isOffer && !isMine && message.offerStatus === 'pending';
+
                     return (
                       <li
                         key={message._id}
@@ -184,6 +203,40 @@ function ChatPageContent() {
                       >
                         <div className={`${styles.messageBubble} ${isMine ? styles.messageBubbleMine : ''}`}>
                           {message.text}
+
+                          {isOffer && (
+                            <div className={styles.offerCard}>
+                              <p className={styles.offerLine}>
+                                {message.offeredBook?.title} → {message.book?.title}
+                              </p>
+                              {message.offerStatus && message.offerStatus !== 'pending' && (
+                                <span className={styles.offerStatus}>
+                                  {message.offerStatus === 'accepted' ? 'Прийнято' : 'Відхилено'}
+                                </span>
+                              )}
+                              {canRespond && (
+                                <div className={styles.offerActions}>
+                                  <button
+                                    type="button"
+                                    onClick={() => offerMutation.mutate({ id: message._id, action: 'accept' })}
+                                    disabled={offerMutation.isPending}
+                                    className={styles.offerAccept}
+                                  >
+                                    Прийняти
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => offerMutation.mutate({ id: message._id, action: 'decline' })}
+                                    disabled={offerMutation.isPending}
+                                    className={styles.offerDecline}
+                                  >
+                                    Відхилити
+                                  </button>
+                                </div>
+                              )}
+                            </div>
+                          )}
+
                           <span className={styles.messageTime}>{formatTime(message.createdAt)}</span>
                         </div>
                       </li>

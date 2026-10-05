@@ -4,6 +4,8 @@ import { connectDB } from '@/lib/mongodb';
 import Message from '@/models/Message';
 import { isNonEmpty } from '@/lib/validation';
 
+const BOOK_REF_FIELDS = 'title coverImage price';
+
 // GET /api/messages?with=<userId> — історія переписки з конкретним користувачем (лише свої)
 export async function GET(request: Request) {
   const session = await auth();
@@ -25,7 +27,10 @@ export async function GET(request: Request) {
       { sender: meId, receiver: withUserId },
       { sender: withUserId, receiver: meId },
     ],
-  }).sort({ createdAt: 1 });
+  })
+    .sort({ createdAt: 1 })
+    .populate('book', BOOK_REF_FIELDS)
+    .populate('offeredBook', BOOK_REF_FIELDS);
 
   // Позначаємо прочитаними ті, що написав співрозмовник мені
   await Message.updateMany({ sender: withUserId, receiver: meId, read: false }, { $set: { read: true } });
@@ -33,7 +38,8 @@ export async function GET(request: Request) {
   return NextResponse.json(messages);
 }
 
-// POST /api/messages — надіслати нове повідомлення (лише для залогінених)
+// POST /api/messages — надіслати нове повідомлення, або пропозицію обміну,
+// якщо передано offeredBook (лише для залогінених)
 export async function POST(request: Request) {
   const session = await auth();
   if (!session?.user?.id) {
@@ -51,8 +57,13 @@ export async function POST(request: Request) {
     sender: session.user.id,
     receiver: data.receiver,
     book: data.book || undefined,
+    offeredBook: data.offeredBook || undefined,
+    offerStatus: data.offeredBook ? 'pending' : undefined,
     text: data.text,
   });
+
+  await message.populate('book', BOOK_REF_FIELDS);
+  await message.populate('offeredBook', BOOK_REF_FIELDS);
 
   return NextResponse.json(message, { status: 201 });
 }

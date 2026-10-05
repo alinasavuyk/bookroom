@@ -6,7 +6,7 @@ import { getRatingsMap } from '@/lib/ratings';
 import { isNonEmpty } from '@/lib/validation';
 import { OTHER_GENRE, STANDARD_BOOK_GENRES } from '@/lib/genres';
 
-// GET /api/books?genre=&type=&search=&owner=&minPrice=&maxPrice=&page=&limit= — каталог з фільтрами
+// GET /api/books?genre=&type=&search=&owner=&minPrice=&maxPrice=&page=&sort= — каталог з фільтрами
 export async function GET(request: Request) {
   await connectDB();
   const { searchParams } = new URL(request.url);
@@ -17,6 +17,7 @@ export async function GET(request: Request) {
   const minPrice = searchParams.get('minPrice');
   const maxPrice = searchParams.get('maxPrice');
   const pageParam = searchParams.get('page');
+  const sort = searchParams.get('sort');
 
   const query: Record<string, unknown> = {};
   if (genre) {
@@ -51,6 +52,29 @@ export async function GET(request: Request) {
   const BOOKS_PER_PAGE = 12;
   const isPaginated = pageParam !== null;
   const page = Math.max(1, Number(pageParam) || 1);
+
+  if (isPaginated && sort === 'rating') {
+    // Рейтинг рахується окремою агрегацією по коментарях, а не полем книги,
+    // тому сортувати по ньому на рівні Mongo-запиту книг не можна —
+    // тягнемо всі відповідні книги й сортуємо в пам'яті
+    const allBooks = await Book.find(query).populate('owner', 'name avatar').lean();
+    const ratingsMap = await getRatingsMap(allBooks.map((b) => b._id));
+    const withRatings = allBooks
+      .map((b) => ({
+        ...b,
+        avgRating: ratingsMap.get(b._id.toString())?.avgRating ?? 0,
+        reviewCount: ratingsMap.get(b._id.toString())?.reviewCount ?? 0,
+      }))
+      .sort((a, b) => b.avgRating - a.avgRating);
+
+    const totalCount = withRatings.length;
+    const start = (page - 1) * BOOKS_PER_PAGE;
+    return NextResponse.json({
+      books: withRatings.slice(start, start + BOOKS_PER_PAGE),
+      totalCount,
+      totalPages: Math.max(1, Math.ceil(totalCount / BOOKS_PER_PAGE)),
+    });
+  }
 
   const booksQuery = Book.find(query).populate('owner', 'name avatar').sort({ createdAt: -1 });
   if (isPaginated) {

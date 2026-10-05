@@ -26,9 +26,16 @@ export const EMPTY_CATALOG_FILTERS: CatalogFilterValues = {
 
 type SectionKey = 'genre' | 'type' | 'price';
 
-export default function CatalogFilters({ onApply }: { onApply: (filters: CatalogFilterValues) => void }) {
-  const [draft, setDraft] = useState<CatalogFilterValues>(EMPTY_CATALOG_FILTERS);
-  const [openSection, setOpenSection] = useState<SectionKey | null>('genre');
+interface CatalogFiltersProps {
+  onApply: (filters: CatalogFilterValues) => void;
+  initialValues?: CatalogFilterValues;
+}
+
+export default function CatalogFilters({ onApply, initialValues }: CatalogFiltersProps) {
+  const [draft, setDraft] = useState<CatalogFilterValues>(initialValues ?? EMPTY_CATALOG_FILTERS);
+  const [openSection, setOpenSection] = useState<SectionKey | null>(
+    initialValues?.types.length ? 'type' : 'genre'
+  );
 
   const toggleSection = (key: SectionKey) => {
     setOpenSection((prev) => (prev === key ? null : key));

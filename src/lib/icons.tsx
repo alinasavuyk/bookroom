@@ -1,1 +1,17 @@
-export { TbHeart, TbHeartFilled, TbEye, TbEyeOff, TbStarFilled, TbMessageCircle, TbBrandGoogle } from 'react-icons/tb';
+export {
+  TbHeart,
+  TbHeartFilled,
+  TbEye,
+  TbEyeOff,
+  TbStarFilled,
+  TbMessageCircle,
+  TbBrandGoogle,
+  TbChevronLeft,
+  TbChevronRight,
+  TbSearch,
+  TbShoppingCart,
+  TbShoppingCartFilled,
+  TbArrowsExchange,
+  TbCheck,
+  TbX,
+} from 'react-icons/tb';

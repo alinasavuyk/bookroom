@@ -10,7 +10,16 @@ import BookCard from '@/components/BookCard';
 import Loader from '@/components/Loader';
 import Modal from '@/components/Modal';
 import PasswordInput from '@/components/PasswordInput';
-import { fetchUserProfile, fetchBooksByOwner, updateProfile, changePassword } from '@/lib/api-client';
+import Tabs from '@/components/Tabs';
+import { OrderDTO } from '@/types/models';
+import {
+  fetchUserProfile,
+  fetchBooksByOwner,
+  updateProfile,
+  changePassword,
+  fetchOrders,
+  updateOrderStatus,
+} from '@/lib/api-client';
 import { useRequireAuth } from '@/lib/useRequireAuth';
 import { useToast } from '@/components/ToastProvider';
 import formStyles from '@/styles/Form.module.css';
@@ -35,6 +44,91 @@ const profileSchema = Yup.object({
       schema.oneOf([Yup.ref('newPassword')], 'Паролі не збігаються').required('Підтвердь новий пароль'),
   }),
 });
+
+const PAYMENT_LABEL: Record<OrderDTO['paymentMethod'], string> = {
+  cash: 'Готівкою при отриманні',
+  card: 'Переказ на карту',
+  cod: 'Накладений платіж',
+};
+
+const ORDER_STATUS_LABEL: Record<OrderDTO['status'], string> = {
+  active: 'Очікує підтвердження',
+  confirmed: 'Підтверджено',
+  cancelled: 'Скасовано',
+};
+
+function OrderRow({
+  order,
+  counterpart,
+  counterpartLabel,
+  role,
+  onConfirm,
+  onCancel,
+  isUpdating,
+}: {
+  order: OrderDTO;
+  counterpart: OrderDTO['buyer'];
+  counterpartLabel: string;
+  role: 'buyer' | 'seller';
+  onConfirm: (orderId: string) => void;
+  onCancel: (orderId: string) => void;
+  isUpdating: boolean;
+}) {
+  return (
+    <li className={styles.orderCard}>
+      {order.bookCoverImage ? (
+        <Image
+          src={order.bookCoverImage}
+          alt={order.bookTitle}
+          width={48}
+          height={68}
+          className={styles.orderCover}
+        />
+      ) : (
+        <div className={styles.orderCoverPlaceholder} />
+      )}
+      <div className={styles.orderInfo}>
+        <div className={styles.orderTitleRow}>
+          <p className={styles.orderTitle}>{order.bookTitle}</p>
+          <span className={`${styles.orderStatus} ${styles[`orderStatus_${order.status}`]}`}>
+            {ORDER_STATUS_LABEL[order.status]}
+          </span>
+        </div>
+        <p className={styles.orderMeta}>
+          {order.price} ₴ · {counterpartLabel}: {counterpart.name}
+        </p>
+        <p className={styles.orderMeta}>
+          Нова Пошта, {order.city}, відділення {order.warehouse}
+        </p>
+        <p className={styles.orderMeta}>{PAYMENT_LABEL[order.paymentMethod]}</p>
+        <p className={styles.orderDate}>{new Date(order.createdAt).toLocaleDateString('uk-UA')}</p>
+
+        {order.status !== 'cancelled' && (
+          <div className={styles.orderActions}>
+            {role === 'seller' && order.status === 'active' && (
+              <button
+                type="button"
+                onClick={() => onConfirm(order._id)}
+                disabled={isUpdating}
+                className={styles.orderConfirmButton}
+              >
+                Підтвердити
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={() => onCancel(order._id)}
+              disabled={isUpdating}
+              className={styles.orderCancelButton}
+            >
+              Скасувати замовлення
+            </button>
+          </div>
+        )}
+      </div>
+    </li>
+  );
+}
 
 export default function ProfilePage() {
   return (
@@ -77,6 +171,31 @@ function ProfilePageContent() {
     queryFn: () => fetchBooksByOwner(userId!),
     enabled: !!userId,
   });
+
+  const { data: myPurchases = [] } = useQuery({
+    queryKey: ['orders', 'buyer', userId],
+    queryFn: () => fetchOrders('buyer'),
+    enabled: !!userId,
+  });
+
+  const { data: receivedOrders = [] } = useQuery({
+    queryKey: ['orders', 'seller', userId],
+    queryFn: () => fetchOrders('seller'),
+    enabled: !!userId,
+  });
+
+  const orderMutation = useMutation({
+    mutationFn: ({ orderId, action }: { orderId: string; action: 'confirm' | 'cancel' }) =>
+      updateOrderStatus(orderId, action),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['orders', 'buyer', userId] });
+      queryClient.invalidateQueries({ queryKey: ['orders', 'seller', userId] });
+    },
+    onError: (err: Error) => showToast(err.message, 'error'),
+  });
+
+  const handleConfirmOrder = (orderId: string) => orderMutation.mutate({ orderId, action: 'confirm' });
+  const handleCancelOrder = (orderId: string) => orderMutation.mutate({ orderId, action: 'cancel' });
 
   const [editing, setEditing] = useState(false);
   const [avatarFile, setAvatarFile] = useState<File | null>(null);
@@ -335,45 +454,102 @@ function ProfilePageContent() {
         </form>
       )}
 
-      <section>
-        <h2 className={styles.sectionHeading}>Мої книги</h2>
-        {myBooks.length > 0 ? (
-          <ul className={gridStyles.grid}>
-            {myBooks.map((book) => (
-              <li key={book._id}>
-                <BookCard book={book} />
-              </li>
-            ))}
-          </ul>
-        ) : (
-          <p className={gridStyles.empty}>Ти ще не додала жодної книги</p>
-        )}
-      </section>
-
-      <section>
-        <h2 className={styles.sectionHeading}>Збережені книги</h2>
-        {profile.savedBooks.length > 0 ? (
-          <ul className={gridStyles.grid}>
-            {profile.savedBooks.map((book) => (
-              <li key={book._id}>
-                <BookCard
-                  book={book}
-                  initialSaved
-                  onToggleSaved={(bookId, saved) => {
-                    if (!saved && userId) {
-                      queryClient.setQueryData<typeof profile>(['user', userId], (prev) =>
-                        prev ? { ...prev, savedBooks: prev.savedBooks.filter((b) => b._id !== bookId) } : prev
-                      );
-                    }
-                  }}
-                />
-              </li>
-            ))}
-          </ul>
-        ) : (
-          <p className={gridStyles.empty}>Немає збережених книг</p>
-        )}
-      </section>
+      <div className={styles.tabsWrap}>
+      <Tabs
+        tabs={[
+          {
+            key: 'myBooks',
+            label: 'Мої книги',
+            content:
+              myBooks.length > 0 ? (
+                <ul className={gridStyles.grid}>
+                  {myBooks.map((book) => (
+                    <li key={book._id}>
+                      <BookCard book={book} />
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p className={gridStyles.empty}>Ти ще не додала жодної книги</p>
+              ),
+          },
+          {
+            key: 'saved',
+            label: 'Збережені книги',
+            content:
+              profile.savedBooks.length > 0 ? (
+                <ul className={gridStyles.grid}>
+                  {profile.savedBooks.map((book) => (
+                    <li key={book._id}>
+                      <BookCard
+                        book={book}
+                        initialSaved
+                        onToggleSaved={(bookId, saved) => {
+                          if (!saved && userId) {
+                            queryClient.setQueryData<typeof profile>(['user', userId], (prev) =>
+                              prev
+                                ? { ...prev, savedBooks: prev.savedBooks.filter((b) => b._id !== bookId) }
+                                : prev
+                            );
+                          }
+                        }}
+                      />
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p className={gridStyles.empty}>Немає збережених книг</p>
+              ),
+          },
+          {
+            key: 'purchases',
+            label: 'Мої покупки',
+            content:
+              myPurchases.length > 0 ? (
+                <ul className={styles.orderList}>
+                  {myPurchases.map((order) => (
+                    <OrderRow
+                      key={order._id}
+                      order={order}
+                      counterpart={order.seller}
+                      counterpartLabel="Продавець"
+                      role="buyer"
+                      onConfirm={handleConfirmOrder}
+                      onCancel={handleCancelOrder}
+                      isUpdating={orderMutation.isPending}
+                    />
+                  ))}
+                </ul>
+              ) : (
+                <p className={gridStyles.empty}>Ти ще нічого не замовляла</p>
+              ),
+          },
+          {
+            key: 'received',
+            label: 'Отримані замовлення',
+            content:
+              receivedOrders.length > 0 ? (
+                <ul className={styles.orderList}>
+                  {receivedOrders.map((order) => (
+                    <OrderRow
+                      key={order._id}
+                      order={order}
+                      counterpart={order.buyer}
+                      counterpartLabel="Покупець"
+                      role="seller"
+                      onConfirm={handleConfirmOrder}
+                      onCancel={handleCancelOrder}
+                      isUpdating={orderMutation.isPending}
+                    />
+                  ))}
+                </ul>
+              ) : (
+                <p className={gridStyles.empty}>Поки що немає замовлень на твої книги</p>
+              ),
+          },
+        ]}
+      />
+      </div>
     </div>
   );
 }

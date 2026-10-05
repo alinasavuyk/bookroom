@@ -1,0 +1,84 @@
+.wrap {
+  position: relative;
+}
+
+.viewport {
+  overflow: hidden;
+}
+
+.container {
+  display: flex;
+  gap: var(--space-4);
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+/* Ширина картки рахується так, щоб завжди вміщувалась ціла кількість
+   карток на ряд (2 → 3 → 4, як і в сітці каталогу) — без обрізаного
+   "хвостика" наступної картки скраю */
+.slide {
+  position: relative;
+  flex: 0 0 calc((100% - var(--space-4)) / 2);
+  min-width: 0;
+}
+
+@media (min-width: 768px) {
+  .slide {
+    flex-basis: calc((100% - 2 * var(--space-4)) / 3);
+  }
+}
+
+@media (min-width: 1440px) {
+  .slide {
+    flex-basis: calc((100% - 3 * var(--space-4)) / 4);
+  }
+}
+
+.badge {
+  position: absolute;
+  top: var(--space-2);
+  left: var(--space-2);
+  z-index: 2;
+  background: rgba(255, 255, 255, 0.75);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  color: var(--color-blue);
+  font-size: 0.7rem;
+  font-weight: 600;
+  padding: 0.25rem 0.6rem;
+  border-radius: var(--radius-pill);
+}
+
+.arrow {
+  position: absolute;
+  top: 40%;
+  transform: translateY(-50%);
+  width: 2.5rem;
+  height: 2.5rem;
+  border-radius: var(--radius-pill);
+  border: none;
+  background: var(--color-white);
+  box-shadow: var(--shadow-md);
+  font-size: 1.25rem;
+  color: var(--color-blue);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 3;
+  transition: opacity 0.2s;
+}
+
+.arrow:disabled {
+  opacity: 0.3;
+  cursor: default;
+}
+
+.arrowPrev {
+  left: -0.75rem;
+}
+
+.arrowNext {
+  right: -0.75rem;
+}

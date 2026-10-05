@@ -1,6 +1,7 @@
 'use client';
-import { useState } from 'react';
+import { useState, Suspense } from 'react';
 import { useSession } from 'next-auth/react';
+import { useSearchParams } from 'next/navigation';
 import { useQuery } from '@tanstack/react-query';
 import BookCard from '@/components/BookCard';
 import Loader from '@/components/Loader';
@@ -11,14 +12,30 @@ import styles from './CatalogPage.module.css';
 import gridStyles from '@/styles/BookGrid.module.css';
 
 export default function CatalogPage() {
+  return (
+    <Suspense fallback={<Loader />}>
+      <CatalogPageContent />
+    </Suspense>
+  );
+}
+
+function CatalogPageContent() {
   const { data: session } = useSession();
-  const [search, setSearch] = useState('');
-  const [filters, setFilters] = useState<CatalogFilterValues>(EMPTY_CATALOG_FILTERS);
+  const searchParams = useSearchParams();
+
+  const [search, setSearch] = useState(() => searchParams.get('search') ?? '');
+  const [filters, setFilters] = useState<CatalogFilterValues>(() => {
+    const type = searchParams.get('type');
+    return type ? { ...EMPTY_CATALOG_FILTERS, types: type.split(',') } : EMPTY_CATALOG_FILTERS;
+  });
+  const [sort] = useState<'new' | 'rating'>(() =>
+    searchParams.get('sort') === 'rating' ? 'rating' : 'new'
+  );
   const [page, setPage] = useState(1);
 
   const { data, isLoading } = useQuery({
-    queryKey: ['books', search, filters, page],
-    queryFn: () => fetchBooks(search, filters, page),
+    queryKey: ['books', search, filters, page, sort],
+    queryFn: () => fetchBooks(search, filters, page, sort),
   });
   const books = data?.books ?? [];
   const totalPages = data?.totalPages ?? 1;
@@ -54,7 +71,7 @@ export default function CatalogPage() {
       />
 
       <div className={styles.layout}>
-        <CatalogFilters onApply={handleFiltersApply} />
+        <CatalogFilters onApply={handleFiltersApply} initialValues={filters} />
 
         <div className={styles.results}>
           {isLoading ? (

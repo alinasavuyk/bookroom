@@ -221,6 +221,65 @@
   opacity: 0.7;
 }
 
+.offerCard {
+  margin-top: 0.5rem;
+  padding-top: 0.5rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.3);
+}
+
+.messageBubble:not(.messageBubbleMine) .offerCard {
+  border-top-color: var(--color-border);
+}
+
+.offerLine {
+  margin: 0 0 0.35rem;
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+
+.offerStatus {
+  display: inline-block;
+  font-size: 0.75rem;
+  font-weight: 600;
+  opacity: 0.85;
+}
+
+.offerActions {
+  display: flex;
+  gap: 0.5rem;
+  margin-top: 0.4rem;
+}
+
+/* Кнопки прийняти/відхилити показуються лише в отриманих повідомленнях
+   (світла бульбашка), тому стилізовані під неї, а не під "мою" синю */
+.offerAccept {
+  background: var(--color-blue);
+  color: var(--color-white);
+  border: none;
+  border-radius: 0.375rem;
+  padding: 0.3rem 0.65rem;
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.offerDecline {
+  background: none;
+  border: 1px solid var(--color-border);
+  border-radius: 0.375rem;
+  padding: 0.3rem 0.65rem;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--color-text);
+  cursor: pointer;
+}
+
+.offerAccept:disabled,
+.offerDecline:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
 .composer {
   display: flex;
   gap: 0.5rem;
