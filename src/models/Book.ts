@@ -6,6 +6,7 @@ export interface IBook {
   description: string;
   genres: string[];
   coverImage: string;
+  images: string[];
   price: number;
   type: 'sale' | 'exchange' | 'both';
   status: 'available' | 'reserved' | 'sold';
@@ -19,6 +20,7 @@ const BookSchema = new Schema<IBook>(
     description: { type: String, default: '' },
     genres: { type: [String], default: [] },
     coverImage: { type: String, default: '' },
+    images: { type: [String], default: [] },
     price: { type: Number, default: 0 }, // 0 = тільки обмін
     type: { type: String, enum: ['sale', 'exchange', 'both'], default: 'sale' },
     status: { type: String, enum: ['available', 'reserved', 'sold'], default: 'available' },

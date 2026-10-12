@@ -8,6 +8,10 @@
   display: flex;
   flex-direction: column;
   height: calc(100vh - 12rem);
+  /* dvh враховує реальну видиму висоту на мобільних браузерах (панель адреси
+     ховається/з'являється при скролі) — на vh блок виходить вищим за екран,
+     і поле вводу повідомлення опиняється за межами видимої області */
+  height: calc(100dvh - 12rem);
   min-height: 24rem;
   border: 1px solid var(--color-border);
   border-radius: 0.75rem;
@@ -221,6 +225,14 @@
   opacity: 0.7;
 }
 
+.messageImage {
+  display: block;
+  width: 100%;
+  max-width: 14rem;
+  height: auto;
+  border-radius: 0.5rem;
+}
+
 .offerCard {
   margin-top: 0.5rem;
   padding-top: 0.5rem;
@@ -323,6 +335,78 @@
 .sendButton:disabled {
   opacity: 0.5;
   cursor: default;
+}
+
+.iconButton {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 2.5rem;
+  height: 2.5rem;
+  background: none;
+  border: none;
+  color: var(--color-text-muted);
+  font-size: 1.4rem;
+  cursor: pointer;
+  transition: color 0.2s;
+}
+
+.iconButton:hover {
+  color: var(--color-blue);
+}
+
+.iconButton:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.iconButtonActive {
+  color: var(--color-blue);
+}
+
+.imagePreviewRow {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 0.75rem 0;
+}
+
+.imagePreviewThumb {
+  position: relative;
+  width: 3rem;
+  height: 3rem;
+  flex-shrink: 0;
+}
+
+.imagePreviewThumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 0.375rem;
+}
+
+.imagePreviewRemove {
+  position: absolute;
+  top: -0.4rem;
+  right: -0.4rem;
+  width: 1.25rem;
+  height: 1.25rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--color-text);
+  color: var(--color-white);
+  border: 2px solid var(--color-white);
+  border-radius: 50%;
+  font-size: 0.65rem;
+  cursor: pointer;
+  padding: 0;
+}
+
+.imagePreviewLabel {
+  font-size: 0.8rem;
+  color: var(--color-text-muted);
 }
 
 .deliveryModalTitle {

@@ -1,5 +1,5 @@
 'use client';
-import { useEffect, useRef, useState, FormEvent, Suspense } from 'react';
+import { useEffect, useRef, useState, ChangeEvent, FormEvent, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { useSession } from 'next-auth/react';
 import Image from 'next/image';
@@ -13,11 +13,14 @@ import {
   NovaPoshtaCity,
   NovaPoshtaWarehouse,
 } from '@/lib/api-client';
+import { uploadImageToCloudinary } from '@/lib/cloudinary';
+import { TbPlus, TbMoodSmile, TbX } from '@/lib/icons';
 import { useRequireAuth } from '@/lib/useRequireAuth';
 import { useToast } from '@/components/ToastProvider';
 import Loader from '@/components/Loader';
 import Modal from '@/components/Modal';
 import DeliveryPicker from '@/components/DeliveryPicker';
+import EmojiPicker from '@/components/EmojiPicker';
 import styles from './ChatPage.module.css';
 
 function formatTime(iso: string) {
@@ -45,6 +48,12 @@ function ChatPageContent() {
   const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
   const [text, setText] = useState('');
   const messagesEndRef = useRef<HTMLLIElement>(null);
+  const composerInputRef = useRef<HTMLInputElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const [emojiOpen, setEmojiOpen] = useState(false);
+  const [pendingImage, setPendingImage] = useState<{ previewUrl: string; url: string | null } | null>(null);
+  const [uploadingImage, setUploadingImage] = useState(false);
 
   const [deliveryModal, setDeliveryModal] = useState<{ messageId: string } | null>(null);
   const [modalCity, setModalCity] = useState<NovaPoshtaCity | null>(null);
@@ -86,9 +95,11 @@ function ChatPageContent() {
   }, [selectedUserId, messages, queryClient]);
 
   const mutation = useMutation({
-    mutationFn: (value: string) => sendMessage(selectedUserId!, value, bookParam),
+    mutationFn: ({ text: value, image }: { text: string; image?: string }) =>
+      sendMessage(selectedUserId!, value, bookParam, image),
     onSuccess: () => {
       setText('');
+      setPendingImage(null);
       queryClient.invalidateQueries({ queryKey: ['messages', selectedUserId] });
       queryClient.invalidateQueries({ queryKey: ['conversations'] });
     },
@@ -97,9 +108,37 @@ function ChatPageContent() {
 
   const handleSend = (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    if (!text.trim() || !selectedUserId) return;
-    mutation.mutate(text.trim());
+    if (!selectedUserId || uploadingImage) return;
+    if (!text.trim() && !pendingImage?.url) return;
+    mutation.mutate({ text: text.trim(), image: pendingImage?.url ?? undefined });
   };
+
+  const handlePickPhoto = () => fileInputRef.current?.click();
+
+  const handleFileChange = async (e: ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+    if (!file.type.startsWith('image/')) {
+      showToast('Файл має бути зображенням', 'error');
+      return;
+    }
+
+    const previewUrl = URL.createObjectURL(file);
+    setPendingImage({ previewUrl, url: null });
+    setUploadingImage(true);
+    try {
+      const url = await uploadImageToCloudinary(file);
+      setPendingImage({ previewUrl, url });
+    } catch {
+      showToast('Не вдалося завантажити фото', 'error');
+      setPendingImage(null);
+    } finally {
+      setUploadingImage(false);
+    }
+  };
+
+  const removePendingImage = () => setPendingImage(null);
 
   const closeDeliveryModal = () => {
     setDeliveryModal(null);
@@ -241,6 +280,15 @@ function ChatPageContent() {
                         className={`${styles.messageBubbleRow} ${isMine ? styles.messageBubbleRowMine : ''}`}
                       >
                         <div className={`${styles.messageBubble} ${isMine ? styles.messageBubbleMine : ''}`}>
+                          {message.image && (
+                            // eslint-disable-next-line @next/next/no-img-element
+                            <img
+                              src={message.image}
+                              alt=""
+                              className={styles.messageImage}
+                              style={message.text ? { marginBottom: '0.35rem' } : undefined}
+                            />
+                          )}
                           {message.text}
 
                           {isOffer && (
@@ -315,18 +363,82 @@ function ChatPageContent() {
                 </ul>
               )}
 
+              {pendingImage && (
+                <div className={styles.imagePreviewRow}>
+                  <div className={styles.imagePreviewThumb}>
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={pendingImage.previewUrl} alt="" />
+                    <button
+                      type="button"
+                      onClick={removePendingImage}
+                      className={styles.imagePreviewRemove}
+                      aria-label="Прибрати фото"
+                    >
+                      <TbX />
+                    </button>
+                  </div>
+                  <span className={styles.imagePreviewLabel}>
+                    {uploadingImage ? 'Завантаження...' : 'Фото додано'}
+                  </span>
+                </div>
+              )}
+
               <form onSubmit={handleSend} className={styles.composer}>
                 <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/*"
+                  onChange={handleFileChange}
+                  hidden
+                />
+                <button
+                  type="button"
+                  onClick={handlePickPhoto}
+                  disabled={uploadingImage}
+                  className={styles.iconButton}
+                  aria-label="Додати фото"
+                >
+                  <TbPlus />
+                </button>
+                <input
+                  ref={composerInputRef}
                   type="text"
                   value={text}
                   onChange={(e) => setText(e.target.value)}
                   placeholder="Напиши повідомлення..."
                   className={styles.composerInput}
                 />
-                <button type="submit" disabled={mutation.isPending || !text.trim()} className={styles.sendButton}>
+                <button
+                  type="button"
+                  onClick={() => setEmojiOpen((prev) => !prev)}
+                  className={`${styles.iconButton} ${emojiOpen ? styles.iconButtonActive : ''}`}
+                  aria-label="Смайлики"
+                >
+                  <TbMoodSmile />
+                </button>
+                <button
+                  type="submit"
+                  disabled={mutation.isPending || uploadingImage || (!text.trim() && !pendingImage?.url)}
+                  className={styles.sendButton}
+                >
                   Надіслати
                 </button>
               </form>
+
+              {emojiOpen && (
+                <EmojiPicker
+                  onSelect={(emoji) => {
+                    setText((prev) => prev + emoji);
+                    setTimeout(() => {
+                      const input = composerInputRef.current;
+                      if (input) {
+                        input.focus();
+                        input.setSelectionRange(input.value.length, input.value.length);
+                      }
+                    }, 0);
+                  }}
+                />
+              )}
             </>
           )}
         </div>

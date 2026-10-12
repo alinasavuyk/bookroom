@@ -7,9 +7,12 @@ import { useMutation } from '@tanstack/react-query';
 import { isNonEmpty } from '@/lib/validation';
 import { BOOK_GENRES, OTHER_GENRE } from '@/lib/genres';
 import { createBook } from '@/lib/api-client';
+import { uploadImageToCloudinary } from '@/lib/cloudinary';
+import { TbX } from '@/lib/icons';
 import { useToast } from '@/components/ToastProvider';
 import { useRequireAuth } from '@/lib/useRequireAuth';
 import formStyles from '@/styles/Form.module.css';
+import styles from './SellPage.module.css';
 
 const sellSchema = Yup.object({
   title: Yup.string().trim().required('Вкажи назву книги'),
@@ -25,7 +28,7 @@ export default function SellPage() {
   const [customGenre, setCustomGenre] = useState('');
   const [wantsSale, setWantsSale] = useState(false);
   const [wantsExchange, setWantsExchange] = useState(false);
-  const [imageFile, setImageFile] = useState<File | null>(null);
+  const [imageFiles, setImageFiles] = useState<{ file: File; previewUrl: string }[]>([]);
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState('');
 
@@ -40,17 +43,16 @@ export default function SellPage() {
     return 'sale';
   };
 
-  const uploadImage = async (): Promise<string> => {
-    const data = new FormData();
-    data.append('file', imageFile as File);
-    data.append('upload_preset', process.env.NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET as string);
+  const handleImagesChange = (e: ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files ?? []);
+    e.target.value = '';
+    if (files.length === 0) return;
+    const withPreviews = files.map((file) => ({ file, previewUrl: URL.createObjectURL(file) }));
+    setImageFiles((prev) => [...prev, ...withPreviews]);
+  };
 
-    const res = await fetch(
-      `https://api.cloudinary.com/v1_1/${process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME}/image/upload`,
-      { method: 'POST', body: data }
-    );
-    const result = await res.json();
-    return result.secure_url; // посилання на завантажене фото
+  const removeImage = (index: number) => {
+    setImageFiles((prev) => prev.filter((_, i) => i !== index));
   };
 
   const formik = useFormik({
@@ -86,15 +88,21 @@ export default function SellPage() {
         return;
       }
 
-      let coverImageUrl = '';
-      if (imageFile) {
+      let images: string[] = [];
+      if (imageFiles.length > 0) {
         setUploading(true);
-        coverImageUrl = await uploadImage();
+        try {
+          images = await Promise.all(imageFiles.map(({ file }) => uploadImageToCloudinary(file)));
+        } catch {
+          setUploading(false);
+          setError('Не вдалося завантажити фото');
+          return;
+        }
         setUploading(false);
       }
 
       mutation.mutate(
-        { ...values, genres: finalGenres, type: getType(), coverImage: coverImageUrl },
+        { ...values, genres: finalGenres, type: getType(), images, coverImage: images[0] ?? '' },
         {
           onSuccess: () => {
             showToast('Книгу додано!');
@@ -208,14 +216,29 @@ export default function SellPage() {
         />
       </label>
       <label className={formStyles.label}>
-        <span className={formStyles.labelText}>Обкладинка книги</span>
-        <input
-          type="file"
-          accept="image/*"
-          onChange={(e: ChangeEvent<HTMLInputElement>) => setImageFile(e.target.files?.[0] ?? null)}
-          className={formStyles.field}
-        />
+        <span className={formStyles.labelText}>Фото книги (можна кілька, перше стане обкладинкою)</span>
+        <input type="file" accept="image/*" multiple onChange={handleImagesChange} className={formStyles.field} />
       </label>
+
+      {imageFiles.length > 0 && (
+        <ul className={styles.imagePreviewList}>
+          {imageFiles.map(({ previewUrl }, index) => (
+            <li key={previewUrl} className={styles.imagePreviewItem}>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={previewUrl} alt="" className={styles.imagePreviewThumb} />
+              <button
+                type="button"
+                onClick={() => removeImage(index)}
+                className={styles.imagePreviewRemove}
+                aria-label="Прибрати фото"
+              >
+                <TbX />
+              </button>
+              {index === 0 && <span className={styles.imagePreviewBadge}>Обкладинка</span>}
+            </li>
+          ))}
+        </ul>
+      )}
       <ul className={formStyles.checkboxRow}>
         <li>
           <label className={formStyles.checkboxLabel}>

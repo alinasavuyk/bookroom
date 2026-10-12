@@ -8,7 +8,7 @@ import { connectDB } from '@/lib/mongodb';
 import Book from '@/models/Book';
 import Comment from '@/models/Comment';
 import CommentsSection from '@/components/CommentsSection';
-import SaveButton from '@/components/SaveButton';
+import BookGallery from '@/components/BookGallery';
 import CartButton from '@/components/CartButton';
 import ExchangeOfferButton from '@/components/ExchangeOfferButton';
 import BookTabs from '@/components/BookTabs';
@@ -43,7 +43,12 @@ export async function generateMetadata({
     openGraph: {
       title: bookData.title,
       description,
-      images: bookData.coverImage ? [{ url: bookData.coverImage }] : [],
+      images:
+        bookData.images && bookData.images.length > 0
+          ? bookData.images.map((url) => ({ url }))
+          : bookData.coverImage
+            ? [{ url: bookData.coverImage }]
+            : [],
     },
   };
 }
@@ -85,23 +90,17 @@ export default async function BookPage({ params }: { params: Promise<{ id: strin
   const avgRating = ratings.length > 0 ? ratings.reduce((a, b) => a + b, 0) / ratings.length : 0;
   const reviewCount = ratingDocs.length;
 
+  const galleryImages =
+    bookData.images && bookData.images.length > 0
+      ? bookData.images
+      : bookData.coverImage
+        ? [bookData.coverImage]
+        : [];
+
   const overview = (
     <div className={styles.overview}>
       <div className={styles.overviewTop}>
-        <div className={styles.coverWrap}>
-          {bookData.coverImage ? (
-            <Image
-              src={bookData.coverImage}
-              alt={bookData.title}
-              fill
-              sizes="14rem"
-              className={styles.cover}
-            />
-          ) : (
-            <span className={styles.noCover}>Без обкладинки</span>
-          )}
-          <SaveButton bookId={bookData._id} className={styles.saveButton} />
-        </div>
+        <BookGallery bookId={bookData._id} images={galleryImages} title={bookData.title} />
 
         <div className={styles.meta}>
           <div className={styles.metaRow}>

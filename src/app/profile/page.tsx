@@ -246,23 +246,28 @@ function ProfilePageContent() {
     enabled: !!userId,
   });
 
-  const { data: myPurchases = [] } = useQuery({
+  const { data: myPurchasesAll = [] } = useQuery({
     queryKey: ['orders', 'buyer', userId],
     queryFn: () => fetchOrders('buyer'),
     enabled: !!userId,
   });
+  const myPurchases = myPurchasesAll.filter((order) => order.status !== 'cancelled');
 
-  const { data: receivedOrders = [] } = useQuery({
+  const { data: receivedOrdersAll = [] } = useQuery({
     queryKey: ['orders', 'seller', userId],
     queryFn: () => fetchOrders('seller'),
     enabled: !!userId,
   });
+  const receivedOrders = receivedOrdersAll.filter((order) => order.status !== 'cancelled');
 
-  const { data: exchanges = [] } = useQuery({
+  const { data: exchangesAll = [] } = useQuery({
     queryKey: ['exchanges', userId],
     queryFn: fetchExchanges,
     enabled: !!userId,
   });
+  const exchanges = exchangesAll.filter(
+    (exchange) => exchange.offerStatus === 'pending' || exchange.offerStatus === 'accepted'
+  );
 
   const orderMutation = useMutation({
     mutationFn: ({ orderId, action }: { orderId: string; action: 'confirm' | 'cancel' }) =>

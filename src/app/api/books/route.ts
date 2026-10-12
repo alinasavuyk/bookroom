@@ -123,6 +123,12 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Вкажи ціну для продажу книги' }, { status: 400 });
   }
 
-  const book = await Book.create({ ...data, owner: session.user.id });
+  const images: string[] = Array.isArray(data.images) ? data.images : [];
+  const book = await Book.create({
+    ...data,
+    images,
+    coverImage: images[0] || data.coverImage || '',
+    owner: session.user.id,
+  });
   return NextResponse.json(book, { status: 201 });
 }

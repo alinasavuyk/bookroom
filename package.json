@@ -19,6 +19,7 @@
     "mongoose": "^8.24.4",
     "next": "^15.5.25",
     "next-auth": "^5.0.0-beta.32",
+    "photoswipe": "^5.4.4",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
     "react-icons": "^5.7.0",

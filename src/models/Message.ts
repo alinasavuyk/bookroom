@@ -14,6 +14,7 @@ export interface IMessage {
   offererCity?: string;
   offererWarehouse?: string;
   text: string;
+  image?: string;
   read: boolean;
 }
 
@@ -28,7 +29,8 @@ const MessageSchema = new Schema<IMessage>(
     ownerWarehouse: { type: String },
     offererCity: { type: String },
     offererWarehouse: { type: String },
-    text: { type: String, required: true },
+    text: { type: String, default: '' },
+    image: { type: String },
     read: { type: Boolean, default: false },
   },
   { timestamps: true }

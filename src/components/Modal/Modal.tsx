@@ -1,5 +1,6 @@
 'use client';
-import { ReactNode, useEffect, MouseEvent } from 'react';
+import { ReactNode, useEffect, useState, MouseEvent } from 'react';
+import { createPortal } from 'react-dom';
 import styles from './Modal.module.css';
 
 interface ModalProps {
@@ -9,6 +10,12 @@ interface ModalProps {
 }
 
 export default function Modal({ onClose, children, className }: ModalProps) {
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
   useEffect(() => {
     const handleKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') onClose();
@@ -19,7 +26,13 @@ export default function Modal({ onClose, children, className }: ModalProps) {
 
   const stopPropagation = (e: MouseEvent<HTMLDivElement>) => e.stopPropagation();
 
-  return (
+  // Рендеримо через портал у document.body — інакше, якщо модалку відкрити
+  // з кнопки всередині каруселі (embla ставить transform на свій контейнер
+  // для анімації), position: fixed бекдропу прив'яжеться до цього
+  // трансформованого предка замість усього екрана
+  if (!mounted) return null;
+
+  return createPortal(
     <div className={styles.backdrop} onClick={onClose}>
       <div
         className={`${styles.dialog} ${className ?? ''}`}
@@ -29,6 +42,7 @@ export default function Modal({ onClose, children, className }: ModalProps) {
       >
         {children}
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }

@@ -197,11 +197,11 @@ export async function fetchMessages(withUserId: string): Promise<MessageDTO[]> {
   return res.json();
 }
 
-export async function sendMessage(receiver: string, text: string, book?: string) {
+export async function sendMessage(receiver: string, text: string, book?: string, image?: string) {
   const res = await fetch('/api/messages', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ receiver, text, book }),
+    body: JSON.stringify({ receiver, text, book, image }),
   });
   if (!res.ok) return parseError(res, 'Не вдалося надіслати повідомлення');
   return res.json();

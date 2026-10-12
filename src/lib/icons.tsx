@@ -16,4 +16,7 @@ export {
   TbX,
   TbTrash,
   TbChevronsDown,
+  TbMoodSmile,
+  TbPlus,
+  TbZoomIn,
 } from 'react-icons/tb';

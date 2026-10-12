@@ -49,7 +49,7 @@ export async function POST(request: Request) {
   await connectDB();
   const data = await request.json();
 
-  if (!data.receiver || !isNonEmpty(data.text)) {
+  if (!data.receiver || (!isNonEmpty(data.text) && !isNonEmpty(data.image))) {
     return NextResponse.json({ error: 'Заповни текст повідомлення' }, { status: 400 });
   }
 
@@ -65,7 +65,8 @@ export async function POST(request: Request) {
     offerStatus: data.offeredBook ? 'pending' : undefined,
     offererCity: data.offeredBook ? data.offererCity : undefined,
     offererWarehouse: data.offeredBook ? data.offererWarehouse : undefined,
-    text: data.text,
+    text: data.text || '',
+    image: data.image || undefined,
   });
 
   await message.populate('book', BOOK_REF_FIELDS);

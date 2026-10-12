@@ -66,7 +66,7 @@ export default function Navbar() {
       <div className={styles.container}>
         <Link href="/" className={styles.logo}>Bookroom</Link>
 
-        {/* Повне меню — лише на десктопі (1440px+) */}
+        {/* Повне меню — від 1024px */}
         <div className={styles.desktopMenu}>
           <ul className={styles.navList}>
             {links.map((link) => (

@@ -21,6 +21,7 @@ export interface BookSummary {
 export interface BookDetail extends BookSummary {
   description: string;
   genres: string[];
+  images?: string[];
   owner: BookOwner;
 }
 
@@ -57,6 +58,7 @@ export interface MessageDTO {
   offererCity?: string;
   offererWarehouse?: string;
   text: string;
+  image?: string;
   read: boolean;
   createdAt: string;
 }
