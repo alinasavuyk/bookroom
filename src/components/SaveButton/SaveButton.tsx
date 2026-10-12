@@ -1,7 +1,7 @@
 'use client';
 import { useState, MouseEvent } from 'react';
 import { useSession } from 'next-auth/react';
-import { useMutation } from '@tanstack/react-query';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { TbHeart, TbHeartFilled } from '@/lib/icons';
 import { toggleSavedBook } from '@/lib/api-client';
 import { useToast } from '@/components/ToastProvider';
@@ -17,6 +17,7 @@ interface SaveButtonProps {
 export default function SaveButton({ bookId, initialSaved = false, onToggle, className }: SaveButtonProps) {
   const { data: session, status } = useSession();
   const { showToast } = useToast();
+  const queryClient = useQueryClient();
   const [saved, setSaved] = useState(initialSaved);
 
   const mutation = useMutation({
@@ -32,14 +33,15 @@ export default function SaveButton({ bookId, initialSaved = false, onToggle, cla
 
     const nextSaved = !saved;
     setSaved(nextSaved);
+    onToggle?.(bookId, nextSaved);
 
     mutation.mutate(nextSaved, {
       onSuccess: () => {
         showToast(nextSaved ? 'Додано в обране' : 'Прибрано з обраного');
-        onToggle?.(bookId, nextSaved);
       },
       onError: () => {
         setSaved(!nextSaved);
+        queryClient.invalidateQueries({ queryKey: ['user', session.user!.id] });
         showToast('Не вдалося зберегти книгу', 'error');
       },
     });

@@ -9,6 +9,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import BookCard from '@/components/BookCard';
 import Loader from '@/components/Loader';
 import Modal from '@/components/Modal';
+import PaginatedBookGrid from '@/components/PaginatedBookGrid';
 import PasswordInput from '@/components/PasswordInput';
 import Tabs from '@/components/Tabs';
 import { OrderDTO, ExchangeDTO } from '@/types/models';
@@ -548,51 +549,55 @@ function ProfilePageContent() {
         tabs={[
           {
             key: 'myBooks',
-            label: 'Мої книги',
-            content:
-              myBooks.length > 0 ? (
-                <ul className={gridStyles.grid}>
-                  {myBooks.map((book) => (
-                    <li key={book._id}>
-                      <BookCard book={book} />
-                    </li>
-                  ))}
-                </ul>
-              ) : (
-                <p className={gridStyles.empty}>Ти ще не додала жодної книги</p>
-              ),
+            label: (
+              <>
+                Мої книги <span className={styles.tabCount}>{myBooks.length}</span>
+              </>
+            ),
+            content: (
+              <PaginatedBookGrid
+                items={myBooks}
+                emptyText="Ти ще не додала жодної книги"
+                getKey={(book) => book._id}
+                renderItem={(book) => <BookCard book={book} />}
+              />
+            ),
           },
           {
             key: 'saved',
-            label: 'Збережені книги',
-            content:
-              profile.savedBooks.length > 0 ? (
-                <ul className={gridStyles.grid}>
-                  {profile.savedBooks.map((book) => (
-                    <li key={book._id}>
-                      <BookCard
-                        book={book}
-                        initialSaved
-                        onToggleSaved={(bookId, saved) => {
-                          if (!saved && userId) {
-                            queryClient.setQueryData<typeof profile>(['user', userId], (prev) =>
-                              prev
-                                ? { ...prev, savedBooks: prev.savedBooks.filter((b) => b._id !== bookId) }
-                                : prev
-                            );
-                          }
-                        }}
-                      />
-                    </li>
-                  ))}
-                </ul>
-              ) : (
-                <p className={gridStyles.empty}>Немає збережених книг</p>
-              ),
+            label: (
+              <>
+                Збережені книги <span className={styles.tabCount}>{profile.savedBooks.length}</span>
+              </>
+            ),
+            content: (
+              <PaginatedBookGrid
+                items={profile.savedBooks}
+                emptyText="Немає збережених книг"
+                getKey={(book) => book._id}
+                renderItem={(book) => (
+                  <BookCard
+                    book={book}
+                    initialSaved
+                    onToggleSaved={(bookId, saved) => {
+                      if (!saved && userId) {
+                        queryClient.setQueryData<typeof profile>(['user', userId], (prev) =>
+                          prev ? { ...prev, savedBooks: prev.savedBooks.filter((b) => b._id !== bookId) } : prev
+                        );
+                      }
+                    }}
+                  />
+                )}
+              />
+            ),
           },
           {
             key: 'purchases',
-            label: 'Мої покупки',
+            label: (
+              <>
+                Мої покупки <span className={styles.tabCount}>{myPurchases.length}</span>
+              </>
+            ),
             content:
               myPurchases.length > 0 ? (
                 <ul className={styles.orderList}>
@@ -615,7 +620,11 @@ function ProfilePageContent() {
           },
           {
             key: 'received',
-            label: 'Отримані замовлення',
+            label: (
+              <>
+                Отримані замовлення <span className={styles.tabCount}>{receivedOrders.length}</span>
+              </>
+            ),
             content:
               receivedOrders.length > 0 ? (
                 <ul className={styles.orderList}>
@@ -638,7 +647,11 @@ function ProfilePageContent() {
           },
           {
             key: 'exchanges',
-            label: 'Мої обміни',
+            label: (
+              <>
+                Мої обміни <span className={styles.tabCount}>{exchanges.length}</span>
+              </>
+            ),
             content:
               exchanges.length > 0 ? (
                 <ul className={styles.orderList}>

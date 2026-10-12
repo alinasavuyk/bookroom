@@ -30,7 +30,7 @@ export default function Tabs({ tabs }: TabsProps) {
           </button>
         ))}
       </div>
-      <div>{activeTab?.content}</div>
+      <div key={activeTab?.key}>{activeTab?.content}</div>
     </div>
   );
 }

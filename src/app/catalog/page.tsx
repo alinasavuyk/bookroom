@@ -101,7 +101,7 @@ function CatalogPageContent() {
             <Loader />
           ) : displayedBooks.length > 0 ? (
             <>
-              <ul className={styles.grid}>
+              <ul className={gridStyles.grid}>
                 {displayedBooks.map((book) => (
                   <li key={book._id}>
                     <BookCard book={book} initialSaved={savedIds.has(book._id)} />
@@ -114,7 +114,7 @@ function CatalogPageContent() {
                   type="button"
                   onClick={() => showMoreMutation.mutate()}
                   disabled={showMoreMutation.isPending}
-                  className={styles.showMoreButton}
+                  className={gridStyles.showMoreButton}
                 >
                   {showMoreMutation.isPending ? 'Завантаження...' : 'Показати ще'}
                   <TbChevronsDown />
