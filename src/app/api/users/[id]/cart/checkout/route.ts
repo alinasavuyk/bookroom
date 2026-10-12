@@ -43,7 +43,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   const unavailable: string[] = [];
 
   for (const book of cartBooks) {
-    if (book.status !== 'available') {
+    if (book.status !== 'available' || book.price <= 0) {
       unavailable.push(book.title);
       continue;
     }
@@ -61,6 +61,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     await Order.create({
       book: book._id,
       bookTitle: book.title,
+      bookAuthor: book.author,
       bookCoverImage: book.coverImage,
       price: book.price,
       buyer: id,

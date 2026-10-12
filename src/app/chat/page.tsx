@@ -10,10 +10,14 @@ import {
   fetchUserProfile,
   sendMessage,
   respondToExchangeOffer,
+  NovaPoshtaCity,
+  NovaPoshtaWarehouse,
 } from '@/lib/api-client';
 import { useRequireAuth } from '@/lib/useRequireAuth';
 import { useToast } from '@/components/ToastProvider';
 import Loader from '@/components/Loader';
+import Modal from '@/components/Modal';
+import DeliveryPicker from '@/components/DeliveryPicker';
 import styles from './ChatPage.module.css';
 
 function formatTime(iso: string) {
@@ -41,6 +45,10 @@ function ChatPageContent() {
   const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
   const [text, setText] = useState('');
   const messagesEndRef = useRef<HTMLLIElement>(null);
+
+  const [deliveryModal, setDeliveryModal] = useState<{ messageId: string } | null>(null);
+  const [modalCity, setModalCity] = useState<NovaPoshtaCity | null>(null);
+  const [modalWarehouse, setModalWarehouse] = useState<NovaPoshtaWarehouse | null>(null);
 
   useEffect(() => {
     const withParam = searchParams.get('with');
@@ -93,15 +101,44 @@ function ChatPageContent() {
     mutation.mutate(text.trim());
   };
 
+  const closeDeliveryModal = () => {
+    setDeliveryModal(null);
+    setModalCity(null);
+    setModalWarehouse(null);
+  };
+
   const offerMutation = useMutation({
-    mutationFn: ({ id, action }: { id: string; action: 'accept' | 'decline' }) =>
-      respondToExchangeOffer(id, action),
+    mutationFn: ({
+      id,
+      action,
+      city,
+      warehouse,
+    }: {
+      id: string;
+      action: 'accept' | 'decline' | 'cancel';
+      city?: string;
+      warehouse?: string;
+    }) => respondToExchangeOffer(id, action, city && warehouse ? { city, warehouse } : undefined),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['messages', selectedUserId] });
       queryClient.invalidateQueries({ queryKey: ['conversations'] });
+      closeDeliveryModal();
     },
     onError: (err: Error) => showToast(err.message, 'error'),
   });
+
+  const handleDecline = (messageId: string) => offerMutation.mutate({ id: messageId, action: 'decline' });
+  const handleCancel = (messageId: string) => offerMutation.mutate({ id: messageId, action: 'cancel' });
+
+  const handleDeliverySubmit = () => {
+    if (!deliveryModal || !modalCity || !modalWarehouse) return;
+    offerMutation.mutate({
+      id: deliveryModal.messageId,
+      action: 'accept',
+      city: modalCity.name,
+      warehouse: modalWarehouse.number,
+    });
+  };
 
   const activeConversation = conversations.find((c) => c.userId === selectedUserId);
   const headerName = activeConversation?.name ?? selectedUser?.name ?? '';
@@ -195,6 +232,8 @@ function ChatPageContent() {
                     const isMine = message.sender === meId;
                     const isOffer = !!message.offeredBook;
                     const canRespond = isOffer && !isMine && message.offerStatus === 'pending';
+                    const canCancel =
+                      isOffer && (message.offerStatus === 'pending' || message.offerStatus === 'accepted');
 
                     return (
                       <li
@@ -211,27 +250,57 @@ function ChatPageContent() {
                               </p>
                               {message.offerStatus && message.offerStatus !== 'pending' && (
                                 <span className={styles.offerStatus}>
-                                  {message.offerStatus === 'accepted' ? 'Прийнято' : 'Відхилено'}
+                                  {message.offerStatus === 'accepted'
+                                    ? 'Прийнято'
+                                    : message.offerStatus === 'cancelled'
+                                      ? 'Скасовано'
+                                      : 'Відхилено'}
                                 </span>
                               )}
-                              {canRespond && (
+
+                              {message.ownerCity && (
+                                <p className={styles.offerDelivery}>
+                                  Власник: {message.ownerCity}, відділення {message.ownerWarehouse}
+                                </p>
+                              )}
+                              {message.offererCity && (
+                                <p className={styles.offerDelivery}>
+                                  Пропонував обмін: {message.offererCity}, відділення {message.offererWarehouse}
+                                </p>
+                              )}
+
+                              {(canRespond || canCancel) && (
                                 <div className={styles.offerActions}>
-                                  <button
-                                    type="button"
-                                    onClick={() => offerMutation.mutate({ id: message._id, action: 'accept' })}
-                                    disabled={offerMutation.isPending}
-                                    className={styles.offerAccept}
-                                  >
-                                    Прийняти
-                                  </button>
-                                  <button
-                                    type="button"
-                                    onClick={() => offerMutation.mutate({ id: message._id, action: 'decline' })}
-                                    disabled={offerMutation.isPending}
-                                    className={styles.offerDecline}
-                                  >
-                                    Відхилити
-                                  </button>
+                                  {canRespond && (
+                                    <>
+                                      <button
+                                        type="button"
+                                        onClick={() => setDeliveryModal({ messageId: message._id })}
+                                        disabled={offerMutation.isPending}
+                                        className={styles.offerAccept}
+                                      >
+                                        Прийняти
+                                      </button>
+                                      <button
+                                        type="button"
+                                        onClick={() => handleDecline(message._id)}
+                                        disabled={offerMutation.isPending}
+                                        className={styles.offerDecline}
+                                      >
+                                        Відхилити
+                                      </button>
+                                    </>
+                                  )}
+                                  {canCancel && (
+                                    <button
+                                      type="button"
+                                      onClick={() => handleCancel(message._id)}
+                                      disabled={offerMutation.isPending}
+                                      className={styles.offerDecline}
+                                    >
+                                      Скасувати обмін
+                                    </button>
+                                  )}
                                 </div>
                               )}
                             </div>
@@ -262,6 +331,41 @@ function ChatPageContent() {
           )}
         </div>
       </div>
+
+      {deliveryModal && (
+        <Modal onClose={closeDeliveryModal}>
+          <h2 className={styles.deliveryModalTitle}>Прийняти обмін</h2>
+          <p className={styles.deliveryModalText}>
+            Вкажи місто й відділення Нової Пошти, куди надсилати тобі книгу.
+          </p>
+
+          <div className={styles.deliveryModalFields}>
+            <DeliveryPicker
+              city={modalCity}
+              warehouse={modalWarehouse}
+              onCityChange={(selected) => {
+                setModalCity(selected);
+                setModalWarehouse(null);
+              }}
+              onWarehouseChange={setModalWarehouse}
+            />
+          </div>
+
+          <div className={styles.deliveryModalActions}>
+            <button
+              type="button"
+              onClick={handleDeliverySubmit}
+              disabled={!modalCity || !modalWarehouse || offerMutation.isPending}
+              className={styles.offerAccept}
+            >
+              {offerMutation.isPending ? 'Збереження...' : 'Підтвердити'}
+            </button>
+            <button type="button" onClick={closeDeliveryModal} className={styles.offerDecline}>
+              Скасувати
+            </button>
+          </div>
+        </Modal>
+      )}
     </div>
   );
 }

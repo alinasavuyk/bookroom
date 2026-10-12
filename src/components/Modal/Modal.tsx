@@ -5,9 +5,10 @@ import styles from './Modal.module.css';
 interface ModalProps {
   onClose: () => void;
   children: ReactNode;
+  className?: string;
 }
 
-export default function Modal({ onClose, children }: ModalProps) {
+export default function Modal({ onClose, children, className }: ModalProps) {
   useEffect(() => {
     const handleKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') onClose();
@@ -20,7 +21,12 @@ export default function Modal({ onClose, children }: ModalProps) {
 
   return (
     <div className={styles.backdrop} onClick={onClose}>
-      <div className={styles.dialog} role="dialog" aria-modal="true" onClick={stopPropagation}>
+      <div
+        className={`${styles.dialog} ${className ?? ''}`}
+        role="dialog"
+        aria-modal="true"
+        onClick={stopPropagation}
+      >
         {children}
       </div>
     </div>

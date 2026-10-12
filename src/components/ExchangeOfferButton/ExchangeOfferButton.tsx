@@ -3,9 +3,10 @@ import { useState, MouseEvent, ReactNode } from 'react';
 import { useSession } from 'next-auth/react';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { TbArrowsExchange } from '@/lib/icons';
-import { fetchBooksByOwner, sendExchangeOffer } from '@/lib/api-client';
+import { fetchBooksByOwner, sendExchangeOffer, NovaPoshtaCity, NovaPoshtaWarehouse } from '@/lib/api-client';
 import { useToast } from '@/components/ToastProvider';
 import Modal from '@/components/Modal';
+import DeliveryPicker from '@/components/DeliveryPicker';
 import { BookOwner } from '@/types/models';
 import styles from './ExchangeOfferButton.module.css';
 
@@ -28,6 +29,8 @@ export default function ExchangeOfferButton({
   const { showToast } = useToast();
   const [open, setOpen] = useState(false);
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [city, setCity] = useState<NovaPoshtaCity | null>(null);
+  const [warehouse, setWarehouse] = useState<NovaPoshtaWarehouse | null>(null);
   const myId = session?.user?.id;
 
   const { data: myBooks = [], isLoading } = useQuery({
@@ -38,7 +41,15 @@ export default function ExchangeOfferButton({
 
   const mutation = useMutation({
     mutationFn: (offeredBook: { _id: string; title: string }) =>
-      sendExchangeOffer(owner!._id, bookId, offeredBook._id, offeredBook.title, bookTitle),
+      sendExchangeOffer(
+        owner!._id,
+        bookId,
+        offeredBook._id,
+        offeredBook.title,
+        bookTitle,
+        city!.name,
+        warehouse!.number
+      ),
   });
 
   if (status !== 'authenticated' || !owner || owner._id === myId) return null;
@@ -49,12 +60,14 @@ export default function ExchangeOfferButton({
     e.preventDefault();
     e.stopPropagation();
     setSelectedId(null);
+    setCity(null);
+    setWarehouse(null);
     setOpen(true);
   };
 
   const handleSend = () => {
     const chosen = availableBooks.find((b) => b._id === selectedId);
-    if (!chosen) return;
+    if (!chosen || !city || !warehouse) return;
 
     mutation.mutate(
       { _id: chosen._id, title: chosen.title },
@@ -83,7 +96,10 @@ export default function ExchangeOfferButton({
       {open && (
         <Modal onClose={() => setOpen(false)}>
           <h2 className={styles.title}>Запропонувати обмін</h2>
-          <p className={styles.text}>Обери свою книгу, яку пропонуєш натомість за «{bookTitle}»:</p>
+          <p className={styles.text}>
+            Обери свою книгу, яку пропонуєш натомість за «{bookTitle}», і вкажи місто й відділення Нової Пошти, куди
+            надсилати тобі книгу:
+          </p>
 
           {isLoading ? (
             <p className={styles.empty}>Завантаження...</p>
@@ -107,11 +123,25 @@ export default function ExchangeOfferButton({
             </ul>
           )}
 
+          {availableBooks.length > 0 && (
+            <div className={styles.deliveryFields}>
+              <DeliveryPicker
+                city={city}
+                warehouse={warehouse}
+                onCityChange={(selected) => {
+                  setCity(selected);
+                  setWarehouse(null);
+                }}
+                onWarehouseChange={setWarehouse}
+              />
+            </div>
+          )}
+
           <div className={styles.actions}>
             <button
               type="button"
               onClick={handleSend}
-              disabled={!selectedId || mutation.isPending}
+              disabled={!selectedId || !city || !warehouse || mutation.isPending}
               className={styles.primaryButton}
             >
               Надіслати пропозицію

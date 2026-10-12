@@ -1,4 +1,4 @@
-import { BookSummary, CommentDTO, MessageDTO, ConversationDTO, OrderDTO } from '@/types/models';
+import { BookSummary, CommentDTO, MessageDTO, ConversationDTO, OrderDTO, ExchangeDTO } from '@/types/models';
 import { CatalogFilterValues } from '@/components/CatalogFilters';
 
 interface UserProfileResponse {
@@ -207,7 +207,15 @@ export async function sendMessage(receiver: string, text: string, book?: string)
   return res.json();
 }
 
-export async function sendExchangeOffer(receiver: string, requestedBookId: string, offeredBookId: string, offeredBookTitle: string, requestedBookTitle: string) {
+export async function sendExchangeOffer(
+  receiver: string,
+  requestedBookId: string,
+  offeredBookId: string,
+  offeredBookTitle: string,
+  requestedBookTitle: string,
+  offererCity: string,
+  offererWarehouse: string
+) {
   const res = await fetch('/api/messages', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -215,6 +223,8 @@ export async function sendExchangeOffer(receiver: string, requestedBookId: strin
       receiver,
       book: requestedBookId,
       offeredBook: offeredBookId,
+      offererCity,
+      offererWarehouse,
       text: `Пропозиція обміну: «${offeredBookTitle}» на «${requestedBookTitle}»`,
     }),
   });
@@ -222,12 +232,21 @@ export async function sendExchangeOffer(receiver: string, requestedBookId: strin
   return res.json();
 }
 
-export async function respondToExchangeOffer(messageId: string, action: 'accept' | 'decline') {
+export async function respondToExchangeOffer(
+  messageId: string,
+  action: 'accept' | 'decline' | 'cancel',
+  delivery?: { city: string; warehouse: string }
+) {
   const res = await fetch(`/api/messages/${messageId}`, {
     method: 'PATCH',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ action }),
+    body: JSON.stringify({ action, ...delivery }),
   });
   if (!res.ok) return parseError(res, 'Не вдалося опрацювати пропозицію');
+  return res.json();
+}
+
+export async function fetchExchanges(): Promise<ExchangeDTO[]> {
+  const res = await fetch('/api/exchanges');
   return res.json();
 }

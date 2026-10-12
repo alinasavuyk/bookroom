@@ -14,4 +14,6 @@ export {
   TbArrowsExchange,
   TbCheck,
   TbX,
+  TbTrash,
+  TbChevronsDown,
 } from 'react-icons/tb';

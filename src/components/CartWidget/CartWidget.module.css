@@ -30,10 +30,43 @@
   justify-content: center;
 }
 
+.cartDialog {
+  max-width: 24rem;
+}
+
+@media (min-width: 1440px) {
+  .cartDialog {
+    max-width: 30rem;
+  }
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin: 0 0 1rem;
+}
+
 .title {
   font-size: 1.25rem;
   font-weight: 700;
-  margin: 0 0 1rem;
+  margin: 0;
+  color: var(--color-text);
+}
+
+.closeButton {
+  background: none;
+  border: none;
+  color: var(--color-text-muted);
+  cursor: pointer;
+  font-size: 1.25rem;
+  display: flex;
+  flex-shrink: 0;
+  transition: color 0.2s;
+}
+
+.closeButton:hover {
   color: var(--color-text);
 }
 
@@ -50,14 +83,28 @@
   display: flex;
   flex-direction: column;
   gap: 0.75rem;
+}
+
+/* Застосовується лише коли товарів більше одного — інакше для одного
+   елемента трапляється 1px розбіжність scrollHeight/clientHeight через
+   субпіксельне округлення flex-розмірів, і auto-скрол показує зайву
+   смугу прокрутки навіть без реального переповнення */
+.listScrollable {
   max-height: 18rem;
   overflow-y: auto;
 }
 
 .item {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: 0.75rem;
+  padding-bottom: 0.75rem;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.item:last-child {
+  border-bottom: none;
+  padding-bottom: 0;
 }
 
 .cover {
@@ -67,8 +114,8 @@
 }
 
 .coverPlaceholder {
-  width: 40px;
-  height: 56px;
+  width: 48px;
+  height: 68px;
   border-radius: 0.25rem;
   background: var(--color-surface);
   flex-shrink: 0;
@@ -87,25 +134,85 @@
   text-overflow: ellipsis;
 }
 
-.itemPrice {
-  margin: 0.15rem 0 0;
-  color: var(--color-blue);
-  font-weight: 600;
-  font-size: 0.875rem;
+.itemAuthor {
+  margin: 0.1rem 0 0;
+  color: var(--color-text-muted);
+  font-size: 0.8rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
-.removeButton {
+.statusBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  margin-top: 0.4rem;
+  padding: 0.15rem 0.5rem;
+  border-radius: var(--radius-pill);
+  font-size: 0.7rem;
+  font-weight: 600;
+}
+
+.statusAvailable {
+  background: var(--color-blue-soft);
+  color: var(--color-blue);
+}
+
+.statusUnavailable {
+  background: var(--color-surface);
+  color: var(--color-error);
+}
+
+.itemActions {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  justify-content: space-between;
+  align-self: stretch;
+  flex-shrink: 0;
+}
+
+.itemIcons {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.iconButton {
   background: none;
   border: none;
   color: var(--color-text-faint);
   cursor: pointer;
-  font-size: 1rem;
-  flex-shrink: 0;
+  font-size: 1.1rem;
+  display: flex;
   transition: color 0.2s;
 }
 
-.removeButton:hover {
-  color: var(--color-error);
+.iconButton:hover {
+  color: var(--color-blue);
+}
+
+.iconButton:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.itemBottom {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.15rem;
+}
+
+.itemQty {
+  color: var(--color-text-muted);
+  font-size: 0.8rem;
+}
+
+.itemPrice {
+  color: var(--color-blue);
+  font-weight: 600;
+  font-size: 0.875rem;
 }
 
 .totalRow {
@@ -159,8 +266,29 @@
   color: var(--color-text);
 }
 
+.footerActions {
+  display: flex;
+  gap: 0.75rem;
+}
+
+.continueButton {
+  flex: 1;
+  background: var(--color-surface);
+  color: var(--color-text);
+  border: 1px solid var(--color-border);
+  border-radius: 0.5rem;
+  padding: 0.65rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.continueButton:hover {
+  background: var(--color-border);
+}
+
 .checkoutButton {
-  width: 100%;
+  flex: 1;
   background: var(--color-blue);
   color: var(--color-white);
   border: none;

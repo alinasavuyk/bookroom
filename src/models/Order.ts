@@ -3,6 +3,7 @@ import mongoose, { Schema, Model } from 'mongoose';
 export interface IOrder {
   book: mongoose.Types.ObjectId;
   bookTitle: string;
+  bookAuthor: string;
   bookCoverImage: string;
   price: number;
   buyer: mongoose.Types.ObjectId;
@@ -19,6 +20,7 @@ const OrderSchema = new Schema<IOrder>(
     // Знімок назви й обкладинки на момент замовлення — щоб історія не ламалась,
     // якщо книгу згодом відредагують чи видалять
     bookTitle: { type: String, required: true },
+    bookAuthor: { type: String, default: '' },
     bookCoverImage: { type: String, default: '' },
     price: { type: Number, required: true },
     buyer: { type: Schema.Types.ObjectId, ref: 'User', required: true },

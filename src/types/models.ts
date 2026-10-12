@@ -51,9 +51,27 @@ export interface MessageDTO {
   receiver: string;
   book?: MessageBookRef;
   offeredBook?: MessageBookRef;
-  offerStatus?: 'pending' | 'accepted' | 'declined';
+  offerStatus?: 'pending' | 'accepted' | 'declined' | 'cancelled';
+  ownerCity?: string;
+  ownerWarehouse?: string;
+  offererCity?: string;
+  offererWarehouse?: string;
   text: string;
   read: boolean;
+  createdAt: string;
+}
+
+export interface ExchangeDTO {
+  _id: string;
+  sender: OrderParty;
+  receiver: OrderParty;
+  book?: MessageBookRef;
+  offeredBook?: MessageBookRef;
+  offerStatus: 'pending' | 'accepted' | 'declined' | 'cancelled';
+  ownerCity?: string;
+  ownerWarehouse?: string;
+  offererCity?: string;
+  offererWarehouse?: string;
   createdAt: string;
 }
 
@@ -66,6 +84,7 @@ export interface OrderParty {
 export interface OrderDTO {
   _id: string;
   bookTitle: string;
+  bookAuthor?: string;
   bookCoverImage?: string;
   price: number;
   city: string;

@@ -81,6 +81,11 @@ export default function SellPage() {
         return;
       }
 
+      if (wantsSale && (!values.price || values.price <= 0)) {
+        setError('Вкажи ціну для продажу книги');
+        return;
+      }
+
       let coverImageUrl = '';
       if (imageFile) {
         setUploading(true);

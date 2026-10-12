@@ -11,7 +11,7 @@ import Loader from '@/components/Loader';
 import Modal from '@/components/Modal';
 import PasswordInput from '@/components/PasswordInput';
 import Tabs from '@/components/Tabs';
-import { OrderDTO } from '@/types/models';
+import { OrderDTO, ExchangeDTO } from '@/types/models';
 import {
   fetchUserProfile,
   fetchBooksByOwner,
@@ -19,6 +19,8 @@ import {
   changePassword,
   fetchOrders,
   updateOrderStatus,
+  fetchExchanges,
+  respondToExchangeOffer,
 } from '@/lib/api-client';
 import { useRequireAuth } from '@/lib/useRequireAuth';
 import { useToast } from '@/components/ToastProvider';
@@ -94,6 +96,7 @@ function OrderRow({
             {ORDER_STATUS_LABEL[order.status]}
           </span>
         </div>
+        {order.bookAuthor && <p className={styles.orderAuthor}>{order.bookAuthor}</p>}
         <p className={styles.orderMeta}>
           {order.price} ₴ · {counterpartLabel}: {counterpart.name}
         </p>
@@ -122,6 +125,76 @@ function OrderRow({
               className={styles.orderCancelButton}
             >
               Скасувати замовлення
+            </button>
+          </div>
+        )}
+      </div>
+    </li>
+  );
+}
+
+const EXCHANGE_STATUS_LABEL: Record<ExchangeDTO['offerStatus'], string> = {
+  pending: 'Очікує відповіді',
+  accepted: 'Прийнято',
+  declined: 'Відхилено',
+  cancelled: 'Скасовано',
+};
+
+function ExchangeRow({
+  exchange,
+  meId,
+  onCancel,
+  isUpdating,
+}: {
+  exchange: ExchangeDTO;
+  meId: string;
+  onCancel: (messageId: string) => void;
+  isUpdating: boolean;
+}) {
+  const isOfferer = exchange.sender._id === meId;
+  const canCancel = exchange.offerStatus === 'pending' || exchange.offerStatus === 'accepted';
+  const counterpart = isOfferer ? exchange.receiver : exchange.sender;
+  const myDelivery = isOfferer
+    ? { city: exchange.offererCity, warehouse: exchange.offererWarehouse }
+    : { city: exchange.ownerCity, warehouse: exchange.ownerWarehouse };
+  const theirDelivery = isOfferer
+    ? { city: exchange.ownerCity, warehouse: exchange.ownerWarehouse }
+    : { city: exchange.offererCity, warehouse: exchange.offererWarehouse };
+
+  return (
+    <li className={styles.orderCard}>
+      <div className={styles.orderInfo}>
+        <div className={styles.orderTitleRow}>
+          <p className={styles.orderTitle}>
+            {exchange.offeredBook?.title} ⇄ {exchange.book?.title}
+          </p>
+          <span className={`${styles.orderStatus} ${styles[`exchangeStatus_${exchange.offerStatus}`]}`}>
+            {EXCHANGE_STATUS_LABEL[exchange.offerStatus]}
+          </span>
+        </div>
+        <p className={styles.orderMeta}>
+          {isOfferer ? 'Ти пропонувала обмін' : 'Тобі пропонували обмін'} · {counterpart.name}
+        </p>
+        {myDelivery.city && (
+          <p className={styles.orderMeta}>
+            Твоя доставка: {myDelivery.city}, відділення {myDelivery.warehouse}
+          </p>
+        )}
+        {theirDelivery.city && (
+          <p className={styles.orderMeta}>
+            Доставка {counterpart.name}: {theirDelivery.city}, відділення {theirDelivery.warehouse}
+          </p>
+        )}
+        <p className={styles.orderDate}>{new Date(exchange.createdAt).toLocaleDateString('uk-UA')}</p>
+        {canCancel && (
+          <div className={styles.orderActions}>
+            <button
+              type="button"
+              onClick={() => onCancel(exchange._id)}
+              disabled={isUpdating}
+              className={styles.orderCancelButton}
+            >
+              Скасувати обмін
             </button>
           </div>
         )}
@@ -184,6 +257,12 @@ function ProfilePageContent() {
     enabled: !!userId,
   });
 
+  const { data: exchanges = [] } = useQuery({
+    queryKey: ['exchanges', userId],
+    queryFn: fetchExchanges,
+    enabled: !!userId,
+  });
+
   const orderMutation = useMutation({
     mutationFn: ({ orderId, action }: { orderId: string; action: 'confirm' | 'cancel' }) =>
       updateOrderStatus(orderId, action),
@@ -196,6 +275,16 @@ function ProfilePageContent() {
 
   const handleConfirmOrder = (orderId: string) => orderMutation.mutate({ orderId, action: 'confirm' });
   const handleCancelOrder = (orderId: string) => orderMutation.mutate({ orderId, action: 'cancel' });
+
+  const exchangeMutation = useMutation({
+    mutationFn: (messageId: string) => respondToExchangeOffer(messageId, 'cancel'),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['exchanges', userId] });
+    },
+    onError: (err: Error) => showToast(err.message, 'error'),
+  });
+
+  const handleCancelExchange = (messageId: string) => exchangeMutation.mutate(messageId);
 
   const [editing, setEditing] = useState(false);
   const [avatarFile, setAvatarFile] = useState<File | null>(null);
@@ -545,6 +634,26 @@ function ProfilePageContent() {
                 </ul>
               ) : (
                 <p className={gridStyles.empty}>Поки що немає замовлень на твої книги</p>
+              ),
+          },
+          {
+            key: 'exchanges',
+            label: 'Мої обміни',
+            content:
+              exchanges.length > 0 ? (
+                <ul className={styles.orderList}>
+                  {exchanges.map((exchange) => (
+                    <ExchangeRow
+                      key={exchange._id}
+                      exchange={exchange}
+                      meId={userId ?? ''}
+                      onCancel={handleCancelExchange}
+                      isUpdating={exchangeMutation.isPending}
+                    />
+                  ))}
+                </ul>
+              ) : (
+                <p className={gridStyles.empty}>Поки що немає пропозицій обміну</p>
               ),
           },
         ]}

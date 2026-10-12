@@ -11,9 +11,18 @@
 
 .dialog {
   background: var(--color-white);
+  color: var(--color-text);
   border-radius: 0.75rem;
   padding: 1.5rem;
-  max-width: 24rem;
   width: 100%;
+  max-height: calc(100vh - 2rem);
+  overflow-y: auto;
   box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+}
+
+/* :where() тримає нульову специфічність, щоб max-width завжди можна було
+   перевизначити одним звичайним класом (напр. "cartDialog"), незалежно
+   від порядку підключення CSS-модулів у збірці */
+:where(.dialog) {
+  max-width: 24rem;
 }

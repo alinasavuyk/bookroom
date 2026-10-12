@@ -162,6 +162,12 @@
   font-weight: 600;
 }
 
+.orderAuthor {
+  margin: 0.1rem 0 0;
+  color: var(--color-text-muted);
+  font-size: 0.85rem;
+}
+
 .orderStatus {
   font-size: 0.75rem;
   font-weight: 600;
@@ -180,6 +186,26 @@
 }
 
 .orderStatus_cancelled {
+  background: var(--color-surface);
+  color: var(--color-error);
+}
+
+.exchangeStatus_pending {
+  background: var(--color-surface);
+  color: var(--color-text-muted);
+}
+
+.exchangeStatus_accepted {
+  background: var(--color-blue-soft);
+  color: var(--color-blue);
+}
+
+.exchangeStatus_declined {
+  background: var(--color-surface);
+  color: var(--color-error);
+}
+
+.exchangeStatus_cancelled {
   background: var(--color-surface);
   color: var(--color-error);
 }

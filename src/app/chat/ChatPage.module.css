@@ -244,6 +244,12 @@
   opacity: 0.85;
 }
 
+.offerDelivery {
+  margin: 0.25rem 0 0;
+  font-size: 0.8rem;
+  opacity: 0.85;
+}
+
 .offerActions {
   display: flex;
   gap: 0.5rem;
@@ -317,4 +323,29 @@
 .sendButton:disabled {
   opacity: 0.5;
   cursor: default;
+}
+
+.deliveryModalTitle {
+  font-size: 1.25rem;
+  font-weight: 700;
+  margin: 0 0 0.5rem;
+  color: var(--color-text);
+}
+
+.deliveryModalText {
+  color: var(--color-text-muted);
+  margin: 0 0 1rem;
+}
+
+.deliveryModalFields {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  margin-bottom: 1.25rem;
+}
+
+.deliveryModalActions {
+  display: flex;
+  justify-content: center;
+  gap: 0.75rem;
 }

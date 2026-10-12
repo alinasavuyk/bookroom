@@ -1,13 +1,15 @@
 'use client';
-import { useState, Suspense } from 'react';
+import { useEffect, useState, Suspense } from 'react';
 import { useSession } from 'next-auth/react';
 import { useSearchParams } from 'next/navigation';
-import { useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery } from '@tanstack/react-query';
 import BookCard from '@/components/BookCard';
 import Loader from '@/components/Loader';
 import Pagination from '@/components/Pagination';
 import CatalogFilters, { CatalogFilterValues, EMPTY_CATALOG_FILTERS } from '@/components/CatalogFilters';
 import { fetchBooks, fetchUserProfile } from '@/lib/api-client';
+import { TbChevronsDown } from '@/lib/icons';
+import { BookSummary } from '@/types/models';
 import styles from './CatalogPage.module.css';
 import gridStyles from '@/styles/BookGrid.module.css';
 
@@ -39,6 +41,27 @@ function CatalogPageContent() {
   });
   const books = data?.books ?? [];
   const totalPages = data?.totalPages ?? 1;
+
+  // "Показати ще" довантажує наступну сторінку поверх поточної, не змінюючи
+  // активну сторінку в пагінації — скидається при зміні пошуку/фільтрів/сторінки
+  const [extraBooks, setExtraBooks] = useState<BookSummary[]>([]);
+  const [extraPages, setExtraPages] = useState(0);
+
+  useEffect(() => {
+    setExtraBooks([]);
+    setExtraPages(0);
+  }, [search, filters, page, sort]);
+
+  const showMoreMutation = useMutation({
+    mutationFn: () => fetchBooks(search, filters, page + extraPages + 1, sort),
+    onSuccess: (result) => {
+      setExtraBooks((prev) => [...prev, ...result.books]);
+      setExtraPages((prev) => prev + 1);
+    },
+  });
+
+  const displayedBooks = [...books, ...extraBooks];
+  const canShowMore = page + extraPages < totalPages;
 
   const handleSearchChange = (value: string) => {
     setSearch(value);
@@ -76,15 +99,28 @@ function CatalogPageContent() {
         <div className={styles.results}>
           {isLoading ? (
             <Loader />
-          ) : books.length > 0 ? (
+          ) : displayedBooks.length > 0 ? (
             <>
-              <ul className={gridStyles.grid}>
-                {books.map((book) => (
+              <ul className={styles.grid}>
+                {displayedBooks.map((book) => (
                   <li key={book._id}>
                     <BookCard book={book} initialSaved={savedIds.has(book._id)} />
                   </li>
                 ))}
               </ul>
+
+              {canShowMore && (
+                <button
+                  type="button"
+                  onClick={() => showMoreMutation.mutate()}
+                  disabled={showMoreMutation.isPending}
+                  className={styles.showMoreButton}
+                >
+                  {showMoreMutation.isPending ? 'Завантаження...' : 'Показати ще'}
+                  <TbChevronsDown />
+                </button>
+              )}
+
               <Pagination pageCount={totalPages} currentPage={page} onPageChange={setPage} />
             </>
           ) : (

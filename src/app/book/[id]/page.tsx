@@ -73,9 +73,12 @@ export default async function BookPage({ params }: { params: Promise<{ id: strin
 
   const bookData = JSON.parse(JSON.stringify(book)) as BookDetail;
   const isOwner = session?.user?.id === bookData.owner._id;
-  const canBuy = !isOwner && bookData.status === 'available' && (bookData.type === 'sale' || bookData.type === 'both');
-  const canExchange =
-    !isOwner && bookData.status === 'available' && (bookData.type === 'exchange' || bookData.type === 'both');
+  const canBuy =
+    !isOwner &&
+    bookData.status === 'available' &&
+    (bookData.type === 'sale' || bookData.type === 'both') &&
+    bookData.price > 0;
+  const canExchange = !isOwner && bookData.status === 'available';
 
   const ratingDocs = await Comment.find({ book: id }).select('rating').lean();
   const ratings = ratingDocs.map((c) => c.rating).filter((r): r is number => typeof r === 'number');
@@ -174,7 +177,7 @@ export default async function BookPage({ params }: { params: Promise<{ id: strin
             </Link>
           )}
 
-          <div className={styles.ownerCard}>
+          <Link href={`/users/${bookData.owner._id}`} className={styles.ownerCard}>
             {bookData.owner.avatar ? (
               <Image
                 src={bookData.owner.avatar}
@@ -189,7 +192,7 @@ export default async function BookPage({ params }: { params: Promise<{ id: strin
               </div>
             )}
             <span>{bookData.owner.name}</span>
-          </div>
+          </Link>
         </aside>
       </div>
     </div>

@@ -119,6 +119,10 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Обери хоча б один жанр' }, { status: 400 });
   }
 
+  if ((data.type === 'sale' || data.type === 'both') && (!data.price || data.price <= 0)) {
+    return NextResponse.json({ error: 'Вкажи ціну для продажу книги' }, { status: 400 });
+  }
+
   const book = await Book.create({ ...data, owner: session.user.id });
   return NextResponse.json(book, { status: 201 });
 }

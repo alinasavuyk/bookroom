@@ -60,6 +60,13 @@
   background: var(--color-surface);
 }
 
+.deliveryFields {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  margin: 0 0 1.25rem;
+}
+
 .actions {
   display: flex;
   justify-content: center;

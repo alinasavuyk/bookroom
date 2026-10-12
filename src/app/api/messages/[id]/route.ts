@@ -6,8 +6,9 @@ import Book from '@/models/Book';
 
 const BOOK_REF_FIELDS = 'title coverImage price';
 
-// PATCH /api/messages/:id — прийняти чи відхилити пропозицію обміну —
-// лише отримувач пропозиції
+// PATCH /api/messages/:id — прийняти (з власними даними доставки) чи
+// відхилити пропозицію обміну (лише отримувач), або скасувати її
+// (будь-яка зі сторін, поки обмін ще не завершено)
 export async function PATCH(request: Request, { params }: { params: Promise<{ id: string }> }) {
   const session = await auth();
   if (!session?.user?.id) {
@@ -15,42 +16,96 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
   }
 
   const { id } = await params;
-  const { action } = await request.json();
-  if (action !== 'accept' && action !== 'decline') {
+  const { action, city, warehouse } = await request.json();
+  if (action !== 'accept' && action !== 'decline' && action !== 'cancel') {
     return NextResponse.json({ error: 'Невідома дія' }, { status: 400 });
   }
 
   await connectDB();
   const message = await Message.findById(id);
   if (!message) return NextResponse.json({ error: 'Повідомлення не знайдено' }, { status: 404 });
+  if (!message.offeredBook) {
+    return NextResponse.json({ error: 'Це не пропозиція обміну' }, { status: 400 });
+  }
 
-  if (message.receiver.toString() !== session.user.id) {
+  const meId = session.user.id;
+  const isSender = message.sender.toString() === meId;
+  const isReceiver = message.receiver.toString() === meId;
+
+  if (action === 'cancel') {
+    if (!isSender && !isReceiver) {
+      return NextResponse.json({ error: 'Немає доступу до цієї пропозиції' }, { status: 403 });
+    }
+    if (message.offerStatus !== 'pending' && message.offerStatus !== 'accepted') {
+      return NextResponse.json({ error: 'Цю пропозицію вже опрацьовано' }, { status: 400 });
+    }
+
+    const wasAccepted = message.offerStatus === 'accepted';
+    message.offerStatus = 'cancelled';
+    await message.save();
+
+    if (wasAccepted) {
+      await Book.updateMany(
+        { _id: { $in: [message.book, message.offeredBook] } },
+        { $set: { status: 'available' } }
+      );
+    }
+
+    await Message.create({
+      sender: meId,
+      receiver: isSender ? message.receiver : message.sender,
+      book: message.book,
+      offeredBook: message.offeredBook,
+      text: 'Обмін скасовано.',
+    });
+
+    await message.populate('book', BOOK_REF_FIELDS);
+    await message.populate('offeredBook', BOOK_REF_FIELDS);
+    return NextResponse.json(message);
+  }
+
+  // accept / decline — лише отримувач пропозиції
+  if (!isReceiver) {
     return NextResponse.json({ error: 'Немає доступу до цієї пропозиції' }, { status: 403 });
   }
-  if (!message.offeredBook || message.offerStatus !== 'pending') {
+  if (message.offerStatus !== 'pending') {
     return NextResponse.json({ error: 'Цю пропозицію вже опрацьовано' }, { status: 400 });
   }
 
-  message.offerStatus = action === 'accept' ? 'accepted' : 'declined';
-  await message.save();
-
   if (action === 'accept') {
+    if (!city || !warehouse) {
+      return NextResponse.json({ error: 'Вкажи місто й відділення для доставки' }, { status: 400 });
+    }
+
+    message.offerStatus = 'accepted';
+    message.ownerCity = city;
+    message.ownerWarehouse = warehouse;
+    await message.save();
+
     await Book.updateMany(
       { _id: { $in: [message.book, message.offeredBook] } },
       { $set: { status: 'reserved' } }
     );
-  }
 
-  await Message.create({
-    sender: session.user.id,
-    receiver: message.sender,
-    book: message.book,
-    offeredBook: message.offeredBook,
-    text:
-      action === 'accept'
-        ? 'Пропозицію обміну прийнято! Напишіть, будь ласка, як домовитись про передачу книг.'
-        : 'Пропозицію обміну відхилено.',
-  });
+    await Message.create({
+      sender: meId,
+      receiver: message.sender,
+      book: message.book,
+      offeredBook: message.offeredBook,
+      text: 'Пропозицію обміну прийнято! Дані доставки обох сторін заповнено — можна домовлятись про відправлення.',
+    });
+  } else {
+    message.offerStatus = 'declined';
+    await message.save();
+
+    await Message.create({
+      sender: meId,
+      receiver: message.sender,
+      book: message.book,
+      offeredBook: message.offeredBook,
+      text: 'Пропозицію обміну відхилено.',
+    });
+  }
 
   await message.populate('book', BOOK_REF_FIELDS);
   await message.populate('offeredBook', BOOK_REF_FIELDS);

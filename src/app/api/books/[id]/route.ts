@@ -31,6 +31,12 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
   const data = await request.json();
   delete data.owner; // власника міняти не можна
 
+  const nextType = data.type ?? book.type;
+  const nextPrice = data.price ?? book.price;
+  if ((nextType === 'sale' || nextType === 'both') && (!nextPrice || nextPrice <= 0)) {
+    return NextResponse.json({ error: 'Вкажи ціну для продажу книги' }, { status: 400 });
+  }
+
   const updated = await Book.findByIdAndUpdate(id, data, { new: true });
   return NextResponse.json(updated);
 }

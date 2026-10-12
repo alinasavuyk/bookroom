@@ -1,21 +1,20 @@
 'use client';
-import { useState, useCallback } from 'react';
+import { useState } from 'react';
 import Image from 'next/image';
 import { useSession } from 'next-auth/react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { TbShoppingCart } from '@/lib/icons';
+import { TbShoppingCart, TbHeart, TbHeartFilled, TbTrash, TbX, TbCheck } from '@/lib/icons';
 import {
   fetchUserProfile,
   toggleCartItem,
+  toggleSavedBook,
   checkoutCart,
-  searchCities,
-  searchWarehouses,
   NovaPoshtaCity,
   NovaPoshtaWarehouse,
 } from '@/lib/api-client';
 import { useToast } from '@/components/ToastProvider';
 import Modal from '@/components/Modal';
-import SearchSelect from '@/components/SearchSelect';
+import DeliveryPicker from '@/components/DeliveryPicker';
 import styles from './CartWidget.module.css';
 
 const PAYMENT_OPTIONS: { value: 'cash' | 'card' | 'cod'; label: string }[] = [
@@ -46,6 +45,12 @@ export default function CartWidget() {
     onError: () => showToast('Не вдалося прибрати книгу з кошика', 'error'),
   });
 
+  const saveMutation = useMutation({
+    mutationFn: ({ bookId, save }: { bookId: string; save: boolean }) => toggleSavedBook(userId!, bookId, save),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['user', userId] }),
+    onError: () => showToast('Не вдалося зберегти книгу', 'error'),
+  });
+
   const checkoutMutation = useMutation({
     mutationFn: () =>
       checkoutCart(userId!, { city: city!.name, warehouse: warehouse!.number, paymentMethod }),
@@ -65,16 +70,13 @@ export default function CartWidget() {
     onError: () => showToast('Не вдалося оформити замовлення', 'error'),
   });
 
-  const searchWarehousesForCity = useCallback(
-    (query: string) => (city ? searchWarehouses(city.ref, query) : Promise.resolve([])),
-    [city]
-  );
-
   if (status !== 'authenticated') return null;
 
   const cart = profile?.cart ?? [];
+  const savedBookIds = new Set((profile?.savedBooks ?? []).map((b) => b._id));
   const total = cart.reduce((sum, b) => sum + b.price, 0);
   const canCheckout = !!city && !!warehouse && !checkoutMutation.isPending;
+  const handleClose = () => setOpen(false);
 
   return (
     <>
@@ -89,79 +91,100 @@ export default function CartWidget() {
       </button>
 
       {open && (
-        <Modal onClose={() => setOpen(false)}>
-          <h2 className={styles.title}>Кошик</h2>
+        <Modal onClose={handleClose} className={styles.cartDialog}>
+          <div className={styles.header}>
+            <h2 className={styles.title}>Кошик товарів</h2>
+            <button type="button" onClick={handleClose} className={styles.closeButton} aria-label="Закрити">
+              <TbX />
+            </button>
+          </div>
 
           {cart.length === 0 ? (
             <p className={styles.empty}>Кошик порожній</p>
           ) : (
             <>
-              <ul className={styles.list}>
-                {cart.map((book) => (
-                  <li key={book._id} className={styles.item}>
-                    {book.coverImage ? (
-                      <Image
-                        src={book.coverImage}
-                        alt={book.title}
-                        width={40}
-                        height={56}
-                        className={styles.cover}
-                      />
-                    ) : (
-                      <div className={styles.coverPlaceholder} />
-                    )}
-                    <div className={styles.itemInfo}>
-                      <p className={styles.itemTitle}>{book.title}</p>
-                      <p className={styles.itemPrice}>{book.price} ₴</p>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => removeMutation.mutate(book._id)}
-                      disabled={removeMutation.isPending}
-                      className={styles.removeButton}
-                      aria-label="Прибрати з кошика"
-                    >
-                      ✕
-                    </button>
-                  </li>
-                ))}
-              </ul>
+              <ul className={cart.length > 1 ? `${styles.list} ${styles.listScrollable}` : styles.list}>
+                {cart.map((book) => {
+                  const isAvailable = book.status === 'available';
+                  const isSaved = savedBookIds.has(book._id);
 
-              <div className={styles.totalRow}>
-                <span>Разом</span>
-                <span className={styles.totalPrice}>{total} ₴</span>
-              </div>
+                  return (
+                    <li key={book._id} className={styles.item}>
+                      {book.coverImage ? (
+                        <Image
+                          src={book.coverImage}
+                          alt={book.title}
+                          width={48}
+                          height={68}
+                          className={styles.cover}
+                        />
+                      ) : (
+                        <div className={styles.coverPlaceholder} />
+                      )}
+
+                      <div className={styles.itemInfo}>
+                        <p className={styles.itemTitle}>{book.title}</p>
+                        <p className={styles.itemAuthor}>{book.author}</p>
+                        <span
+                          className={`${styles.statusBadge} ${
+                            isAvailable ? styles.statusAvailable : styles.statusUnavailable
+                          }`}
+                        >
+                          {isAvailable ? (
+                            <>
+                              <TbCheck /> Доступна
+                            </>
+                          ) : (
+                            <>
+                              <TbX /> Вже недоступна
+                            </>
+                          )}
+                        </span>
+                      </div>
+
+                      <div className={styles.itemActions}>
+                        <div className={styles.itemIcons}>
+                          <button
+                            type="button"
+                            onClick={() => saveMutation.mutate({ bookId: book._id, save: !isSaved })}
+                            disabled={saveMutation.isPending}
+                            className={styles.iconButton}
+                            aria-label={isSaved ? 'Прибрати зі збережених' : 'Зберегти книгу'}
+                          >
+                            {isSaved ? <TbHeartFilled /> : <TbHeart />}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => removeMutation.mutate(book._id)}
+                            disabled={removeMutation.isPending}
+                            className={styles.iconButton}
+                            aria-label="Прибрати з кошика"
+                          >
+                            <TbTrash />
+                          </button>
+                        </div>
+                        <div className={styles.itemBottom}>
+                          <span className={styles.itemQty}>1 шт.</span>
+                          <span className={styles.itemPrice}>{book.price} ₴</span>
+                        </div>
+                      </div>
+                    </li>
+                  );
+                })}
+              </ul>
 
               <div className={styles.deliverySection}>
                 <p className={styles.deliveryHeading}>Доставка Новою Поштою</p>
 
-                <label className={styles.fieldLabel}>
-                  Місто
-                  <SearchSelect
-                    placeholder="Почни вводити назву міста..."
-                    value={city}
-                    onChange={(selected) => {
-                      setCity(selected);
-                      setWarehouse(null);
-                    }}
-                    search={searchCities}
-                    getLabel={(c) => c.name}
-                    getKey={(c) => c.ref}
-                  />
-                </label>
-
-                <label className={styles.fieldLabel}>
-                  Відділення
-                  <SearchSelect
-                    placeholder={city ? 'Почни вводити номер чи адресу...' : 'Спершу обери місто'}
-                    value={warehouse}
-                    onChange={setWarehouse}
-                    search={searchWarehousesForCity}
-                    getLabel={(w) => w.description}
-                    getKey={(w) => w.ref}
-                    disabled={!city}
-                  />
-                </label>
+                <DeliveryPicker
+                  city={city}
+                  warehouse={warehouse}
+                  onCityChange={(selected) => {
+                    setCity(selected);
+                    setWarehouse(null);
+                  }}
+                  onWarehouseChange={setWarehouse}
+                />
 
                 <p className={styles.fieldLabel}>Спосіб оплати</p>
                 <div className={styles.paymentOptions}>
@@ -179,14 +202,24 @@ export default function CartWidget() {
                 </div>
               </div>
 
-              <button
-                type="button"
-                onClick={() => checkoutMutation.mutate()}
-                disabled={!canCheckout}
-                className={styles.checkoutButton}
-              >
-                {checkoutMutation.isPending ? 'Оформлення...' : 'Оформити замовлення'}
-              </button>
+              <div className={styles.totalRow}>
+                <span>Разом</span>
+                <span className={styles.totalPrice}>{total} ₴</span>
+              </div>
+
+              <div className={styles.footerActions}>
+                <button type="button" onClick={handleClose} className={styles.continueButton}>
+                  Продовжити покупки
+                </button>
+                <button
+                  type="button"
+                  onClick={() => checkoutMutation.mutate()}
+                  disabled={!canCheckout}
+                  className={styles.checkoutButton}
+                >
+                  {checkoutMutation.isPending ? 'Оформлення...' : 'Оформити замовлення'}
+                </button>
+              </div>
             </>
           )}
         </Modal>

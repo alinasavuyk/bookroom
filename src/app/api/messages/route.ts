@@ -53,12 +53,18 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Заповни текст повідомлення' }, { status: 400 });
   }
 
+  if (data.offeredBook && (!data.offererCity || !data.offererWarehouse)) {
+    return NextResponse.json({ error: 'Вкажи місто й відділення для доставки' }, { status: 400 });
+  }
+
   const message = await Message.create({
     sender: session.user.id,
     receiver: data.receiver,
     book: data.book || undefined,
     offeredBook: data.offeredBook || undefined,
     offerStatus: data.offeredBook ? 'pending' : undefined,
+    offererCity: data.offeredBook ? data.offererCity : undefined,
+    offererWarehouse: data.offeredBook ? data.offererWarehouse : undefined,
     text: data.text,
   });
 

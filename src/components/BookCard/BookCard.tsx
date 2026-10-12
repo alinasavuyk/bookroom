@@ -14,8 +14,8 @@ interface BookCardProps {
 }
 
 export default function BookCard({ book, initialSaved = false, onToggleSaved }: BookCardProps) {
-  const canBuy = book.status === 'available' && (book.type === 'sale' || book.type === 'both');
-  const canExchange = book.status === 'available' && (book.type === 'exchange' || book.type === 'both');
+  const canBuy = book.status === 'available' && (book.type === 'sale' || book.type === 'both') && book.price > 0;
+  const canExchange = book.status === 'available';
 
   return (
     <Link href={`/book/${book._id}`} className={styles.card}>
