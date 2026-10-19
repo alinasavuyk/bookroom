@@ -192,7 +192,7 @@ function ChatPageContent() {
   }
 
   return (
-    <div>
+    <div className={`${styles.page} chat-page-root`}>
       <h1 className={styles.heading}>Повідомлення</h1>
 
       <div className={styles.layout}>

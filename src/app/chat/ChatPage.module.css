@@ -1,18 +1,26 @@
+.page {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+}
+
 .heading {
   font-size: 1.5rem;
   font-weight: 700;
   margin: 0 0 1rem;
+  flex-shrink: 0;
 }
 
+/* Висота рахується через flex, а не через vh/dvh-магічні числа: на chat-page-root
+   body/main стають точно по висоті екрана (глобальне правило в globals.css),
+   тож .layout просто займає весь залишок — незалежно від висоти навбару,
+   заголовка чи футера на кожному брейкпоінті */
 .layout {
   display: flex;
   flex-direction: column;
-  height: calc(100vh - 12rem);
-  /* dvh враховує реальну видиму висоту на мобільних браузерах (панель адреси
-     ховається/з'являється при скролі) — на vh блок виходить вищим за екран,
-     і поле вводу повідомлення опиняється за межами видимої області */
-  height: calc(100dvh - 12rem);
-  min-height: 24rem;
+  flex: 1;
+  min-height: 0;
   border: 1px solid var(--color-border);
   border-radius: 0.75rem;
   overflow: hidden;
