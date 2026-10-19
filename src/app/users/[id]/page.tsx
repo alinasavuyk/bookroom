@@ -2,10 +2,12 @@ import Image from 'next/image';
 import { notFound } from 'next/navigation';
 import { cache } from 'react';
 import type { Metadata } from 'next';
+import { auth } from '@/lib/auth';
 import { connectDB } from '@/lib/mongodb';
 import User from '@/models/User';
 import Book from '@/models/Book';
 import BookCard from '@/components/BookCard';
+import UserActionsMenu from '@/components/UserActionsMenu';
 import { getRatingsMap } from '@/lib/ratings';
 import { BookSummary } from '@/types/models';
 import gridStyles from '@/styles/BookGrid.module.css';
@@ -36,6 +38,15 @@ export default async function UserProfilePage({ params }: { params: Promise<{ id
   const user = await getUser(id);
   if (!user) notFound();
 
+  const session = await auth();
+  const myId = session?.user?.id;
+  let isBlocked = false;
+  if (myId && myId !== id) {
+    await connectDB();
+    const me = await User.findById(myId).select('blockedUsers').lean();
+    isBlocked = (me?.blockedUsers ?? []).some((u) => u.toString() === id);
+  }
+
   const books = await Book.find({ owner: id }).sort({ createdAt: -1 }).lean();
   const ratingsMap = await getRatingsMap(books.map((b) => b._id));
 
@@ -63,10 +74,16 @@ export default async function UserProfilePage({ params }: { params: Promise<{ id
         ) : (
           <div className={styles.avatarPlaceholder}>{userData.name.charAt(0).toUpperCase()}</div>
         )}
-        <div>
+        <div className={styles.headerInfo}>
           <h1 className={styles.name}>{userData.name}</h1>
           {userData.bio && <p className={styles.bio}>{userData.bio}</p>}
         </div>
+
+        {myId && myId !== id && (
+          <div className={styles.headerActions}>
+            <UserActionsMenu myId={myId} targetUserId={id} isBlocked={isBlocked} />
+          </div>
+        )}
       </div>
 
       <h2 className={styles.booksHeading}>Книги</h2>

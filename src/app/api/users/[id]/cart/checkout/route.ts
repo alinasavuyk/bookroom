@@ -3,8 +3,8 @@ import { auth } from '@/lib/auth';
 import { connectDB } from '@/lib/mongodb';
 import User from '@/models/User';
 import Book from '@/models/Book';
-import Message from '@/models/Message';
 import Order from '@/models/Order';
+import { createMessageAndNotify } from '@/lib/notifications';
 
 const PAYMENT_LABEL: Record<string, string> = {
   cash: 'Готівкою при отриманні',
@@ -51,7 +51,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     book.status = 'reserved';
     await book.save();
 
-    await Message.create({
+    await createMessageAndNotify({
       sender: id,
       receiver: book.owner,
       book: book._id,

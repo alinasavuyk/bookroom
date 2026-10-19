@@ -1,0 +1,10 @@
+.section {
+  scroll-margin-top: var(--space-4);
+  margin-top: var(--space-7);
+}
+
+.sectionTitle {
+  font-size: 1.25rem;
+  font-weight: 600;
+  margin: 0 0 var(--space-4);
+}

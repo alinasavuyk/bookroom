@@ -6,6 +6,7 @@ import Book from '@/models/Book';
 import User from '@/models/User';
 import BookCarousel from '@/components/BookCarousel';
 import HeroSearch from '@/components/HeroSearch';
+import RecentlyViewedSection from '@/components/RecentlyViewedSection';
 import { getRatingsMap } from '@/lib/ratings';
 import { BookSummary } from '@/types/models';
 import styles from './HomePage.module.css';
@@ -63,6 +64,8 @@ export default async function HomePage() {
           </Link>
         </div>
       </section>
+
+      <RecentlyViewedSection savedIds={savedIds} />
 
       <section id="new" className={styles.section}>
         <div className={styles.sectionHeader}>

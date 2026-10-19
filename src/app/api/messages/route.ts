@@ -2,7 +2,9 @@ import { NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 import { connectDB } from '@/lib/mongodb';
 import Message from '@/models/Message';
+import User from '@/models/User';
 import { isNonEmpty } from '@/lib/validation';
+import { createMessageAndNotify } from '@/lib/notifications';
 
 const BOOK_REF_FIELDS = 'title coverImage price';
 
@@ -57,7 +59,19 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Вкажи місто й відділення для доставки' }, { status: 400 });
   }
 
-  const message = await Message.create({
+  const [me, receiver] = await Promise.all([
+    User.findById(session.user.id).select('blockedUsers'),
+    User.findById(data.receiver).select('blockedUsers'),
+  ]);
+  const meId = session.user.id;
+  const isBlocked =
+    me?.blockedUsers.some((u) => u.toString() === data.receiver) ||
+    receiver?.blockedUsers.some((u) => u.toString() === meId);
+  if (isBlocked) {
+    return NextResponse.json({ error: 'Неможливо надіслати повідомлення цьому користувачу' }, { status: 403 });
+  }
+
+  const message = await createMessageAndNotify({
     sender: session.user.id,
     receiver: data.receiver,
     book: data.book || undefined,

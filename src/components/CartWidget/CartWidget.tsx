@@ -15,6 +15,7 @@ import {
 import { useToast } from '@/components/ToastProvider';
 import Modal from '@/components/Modal';
 import DeliveryPicker from '@/components/DeliveryPicker';
+import { getLastDelivery, saveLastDelivery } from '@/lib/lastDelivery';
 import styles from './CartWidget.module.css';
 
 const PAYMENT_OPTIONS: { value: 'cash' | 'card' | 'cod'; label: string }[] = [
@@ -56,6 +57,7 @@ export default function CartWidget() {
       checkoutCart(userId!, { city: city!.name, warehouse: warehouse!.number, paymentMethod }),
     onSuccess: ({ ordered, unavailable }) => {
       queryClient.invalidateQueries({ queryKey: ['user', userId] });
+      if (city && warehouse) saveLastDelivery(city, warehouse);
       if (ordered.length > 0) {
         showToast(`Замовлення оформлено: ${ordered.join(', ')}`);
       }
@@ -78,11 +80,22 @@ export default function CartWidget() {
   const canCheckout = !!city && !!warehouse && !checkoutMutation.isPending;
   const handleClose = () => setOpen(false);
 
+  const handleOpen = () => {
+    if (!city || !warehouse) {
+      const last = getLastDelivery();
+      if (last) {
+        setCity(last.city);
+        setWarehouse(last.warehouse);
+      }
+    }
+    setOpen(true);
+  };
+
   return (
     <>
       <button
         type="button"
-        onClick={() => setOpen(true)}
+        onClick={handleOpen}
         className={styles.button}
         aria-label="Кошик"
       >

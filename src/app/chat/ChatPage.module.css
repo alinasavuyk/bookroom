@@ -195,6 +195,10 @@
   font-weight: 600;
 }
 
+.threadHeaderActions {
+  margin-left: auto;
+}
+
 .messageList {
   flex: 1;
   min-height: 0;

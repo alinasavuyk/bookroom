@@ -1,5 +1,7 @@
 'use client';
-import { useEffect, useState, Suspense } from 'react';
+import { useEffect, useRef, useState, Suspense } from 'react';
+import Link from 'next/link';
+import Image from 'next/image';
 import { useSession } from 'next-auth/react';
 import { useSearchParams } from 'next/navigation';
 import { useMutation, useQuery } from '@tanstack/react-query';
@@ -7,7 +9,7 @@ import BookCard from '@/components/BookCard';
 import Loader from '@/components/Loader';
 import Pagination from '@/components/Pagination';
 import CatalogFilters, { CatalogFilterValues, EMPTY_CATALOG_FILTERS } from '@/components/CatalogFilters';
-import { fetchBooks, fetchUserProfile } from '@/lib/api-client';
+import { fetchBooks, fetchUserProfile, BookSortOption } from '@/lib/api-client';
 import { TbChevronsDown } from '@/lib/icons';
 import { BookSummary } from '@/types/models';
 import styles from './CatalogPage.module.css';
@@ -30,10 +32,23 @@ function CatalogPageContent() {
     const type = searchParams.get('type');
     return type ? { ...EMPTY_CATALOG_FILTERS, types: type.split(',') } : EMPTY_CATALOG_FILTERS;
   });
-  const [sort] = useState<'new' | 'rating'>(() =>
-    searchParams.get('sort') === 'rating' ? 'rating' : 'new'
-  );
+  const [sort, setSort] = useState<BookSortOption>(() => {
+    const value = searchParams.get('sort');
+    return value === 'rating' || value === 'price_asc' || value === 'price_desc' ? value : 'new';
+  });
   const [page, setPage] = useState(1);
+  const [searchFocused, setSearchFocused] = useState(false);
+  const searchBoxRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (searchBoxRef.current && !searchBoxRef.current.contains(e.target as Node)) {
+        setSearchFocused(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   const { data, isLoading } = useQuery({
     queryKey: ['books', search, filters, page, sort],
@@ -73,6 +88,11 @@ function CatalogPageContent() {
     setPage(1);
   };
 
+  const handleSortChange = (value: BookSortOption) => {
+    setSort(value);
+    setPage(1);
+  };
+
   const { data: profile } = useQuery({
     queryKey: ['user', session?.user?.id],
     queryFn: () => fetchUserProfile(session!.user!.id),
@@ -81,17 +101,66 @@ function CatalogPageContent() {
 
   const savedIds = new Set((profile?.savedBooks ?? []).map((b) => b._id));
 
+  const suggestions = search.trim().length >= 2 ? books.slice(0, 5) : [];
+  const showSuggestions = searchFocused && suggestions.length > 0;
+
   return (
     <div>
       <h1 className={styles.title}>Каталог книг</h1>
 
-      <input
-        type="text"
-        placeholder="Пошук за назвою..."
-        value={search}
-        onChange={(e) => handleSearchChange(e.target.value)}
-        className={styles.search}
-      />
+      <div className={styles.searchRow}>
+        <div className={styles.searchBox} ref={searchBoxRef}>
+          <input
+            type="text"
+            placeholder="Пошук за назвою..."
+            value={search}
+            onChange={(e) => handleSearchChange(e.target.value)}
+            onFocus={() => setSearchFocused(true)}
+            className={styles.search}
+          />
+
+          {showSuggestions && (
+            <ul className={styles.suggestions}>
+              {suggestions.map((book) => (
+                <li key={book._id}>
+                  <Link
+                    href={`/book/${book._id}`}
+                    onClick={() => setSearchFocused(false)}
+                    className={styles.suggestionItem}
+                  >
+                    {book.coverImage ? (
+                      <Image
+                        src={book.coverImage}
+                        alt=""
+                        width={32}
+                        height={44}
+                        className={styles.suggestionCover}
+                      />
+                    ) : (
+                      <div className={styles.suggestionCoverPlaceholder} />
+                    )}
+                    <span className={styles.suggestionText}>
+                      <span className={styles.suggestionTitle}>{book.title}</span>
+                      <span className={styles.suggestionAuthor}>{book.author}</span>
+                    </span>
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+        <select
+          value={sort}
+          onChange={(e) => handleSortChange(e.target.value as BookSortOption)}
+          className={styles.sortSelect}
+          aria-label="Сортування"
+        >
+          <option value="new">Спочатку новіші</option>
+          <option value="rating">За рейтингом</option>
+          <option value="price_asc">Ціна: від дешевих</option>
+          <option value="price_desc">Ціна: від дорогих</option>
+        </select>
+      </div>
 
       <div className={styles.layout}>
         <CatalogFilters onApply={handleFiltersApply} initialValues={filters} />

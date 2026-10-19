@@ -7,13 +7,19 @@ import { auth } from '@/lib/auth';
 import { connectDB } from '@/lib/mongodb';
 import Book from '@/models/Book';
 import Comment from '@/models/Comment';
+import User from '@/models/User';
 import CommentsSection from '@/components/CommentsSection';
 import BookGallery from '@/components/BookGallery';
+import BookCard from '@/components/BookCard';
 import CartButton from '@/components/CartButton';
 import ExchangeOfferButton from '@/components/ExchangeOfferButton';
 import BookTabs from '@/components/BookTabs';
-import { BookDetail } from '@/types/models';
+import RecentlyViewedTracker from '@/components/RecentlyViewedTracker';
+import { getRatingsMap } from '@/lib/ratings';
+import { TbEye, TbHeart } from '@/lib/icons';
+import { BookDetail, BookSummary } from '@/types/models';
 import styles from './BookIdPage.module.css';
+import gridStyles from '@/styles/BookGrid.module.css';
 
 // cache() дедуплікує запит між generateMetadata і самим компонентом сторінки
 const getBook = cache(async (id: string) => {
@@ -78,6 +84,16 @@ export default async function BookPage({ params }: { params: Promise<{ id: strin
 
   const bookData = JSON.parse(JSON.stringify(book)) as BookDetail;
   const isOwner = session?.user?.id === bookData.owner._id;
+
+  // Рахуємо перегляди лише чужі — власник, що відкриває своє оголошення,
+  // не повинен накручувати собі статистику
+  let savesCount = 0;
+  if (!isOwner) {
+    await Book.findByIdAndUpdate(id, { $inc: { views: 1 } });
+  } else {
+    savesCount = await User.countDocuments({ savedBooks: id });
+  }
+
   const canBuy =
     !isOwner &&
     bookData.status === 'available' &&
@@ -89,6 +105,27 @@ export default async function BookPage({ params }: { params: Promise<{ id: strin
   const ratings = ratingDocs.map((c) => c.rating).filter((r): r is number => typeof r === 'number');
   const avgRating = ratings.length > 0 ? ratings.reduce((a, b) => a + b, 0) / ratings.length : 0;
   const reviewCount = ratingDocs.length;
+
+  // "Схожі книги" — інші доступні книги з хоча б одним спільним жанром
+  const similarBooksRaw = await Book.find({
+    _id: { $ne: id },
+    genres: { $in: bookData.genres },
+    status: 'available',
+  })
+    .populate('owner', 'name avatar')
+    .sort({ createdAt: -1 })
+    .limit(4)
+    .lean();
+  const similarRatingsMap = await getRatingsMap(similarBooksRaw.map((b) => b._id));
+  const similarBooks = JSON.parse(
+    JSON.stringify(
+      similarBooksRaw.map((b) => ({
+        ...b,
+        avgRating: similarRatingsMap.get(b._id.toString())?.avgRating ?? 0,
+        reviewCount: similarRatingsMap.get(b._id.toString())?.reviewCount ?? 0,
+      }))
+    )
+  ) as BookSummary[];
 
   const galleryImages =
     bookData.images && bookData.images.length > 0
@@ -129,6 +166,8 @@ export default async function BookPage({ params }: { params: Promise<{ id: strin
 
   return (
     <div className={styles.page}>
+      <RecentlyViewedTracker bookId={bookData._id} />
+
       <div className={styles.headerRow}>
         <h1 className={styles.title}>{bookData.title}</h1>
         <span className={styles.statusBadge}>{STATUS_LABEL[bookData.status]}</span>
@@ -176,6 +215,23 @@ export default async function BookPage({ params }: { params: Promise<{ id: strin
             </Link>
           )}
 
+          {isOwner && (
+            <>
+              <Link href={`/book/${bookData._id}/edit`} className={styles.ctaButtonOutline}>
+                Редагувати оголошення
+              </Link>
+
+              <div className={styles.statsRow}>
+                <span className={styles.statItem}>
+                  <TbEye /> {bookData.views ?? 0} переглядів
+                </span>
+                <span className={styles.statItem}>
+                  <TbHeart /> {savesCount} збережень
+                </span>
+              </div>
+            </>
+          )}
+
           <Link href={`/users/${bookData.owner._id}`} className={styles.ownerCard}>
             {bookData.owner.avatar ? (
               <Image
@@ -194,6 +250,19 @@ export default async function BookPage({ params }: { params: Promise<{ id: strin
           </Link>
         </aside>
       </div>
+
+      {similarBooks.length > 0 && (
+        <div className={styles.similarSection}>
+          <h2 className={styles.similarHeading}>Схожі книги</h2>
+          <ul className={gridStyles.grid}>
+            {similarBooks.map((book) => (
+              <li key={book._id}>
+                <BookCard book={book} />
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
     </div>
   );
 }

@@ -1,4 +1,4 @@
-import { BookSummary, CommentDTO, MessageDTO, ConversationDTO, OrderDTO, ExchangeDTO } from '@/types/models';
+import { BookSummary, BookDetail, CommentDTO, MessageDTO, ConversationDTO, OrderDTO, ExchangeDTO } from '@/types/models';
 import { CatalogFilterValues } from '@/components/CatalogFilters';
 
 interface UserProfileResponse {
@@ -7,6 +7,7 @@ interface UserProfileResponse {
   avatar: string;
   savedBooks: BookSummary[];
   cart: BookSummary[];
+  blockedUsers?: string[];
 }
 
 async function parseError(res: Response, fallback: string): Promise<never> {
@@ -20,11 +21,13 @@ interface PaginatedBooksResponse {
   totalPages: number;
 }
 
+export type BookSortOption = 'new' | 'rating' | 'price_asc' | 'price_desc';
+
 export async function fetchBooks(
   search: string,
   filters: CatalogFilterValues,
   page: number,
-  sort: 'new' | 'rating' = 'new'
+  sort: BookSortOption = 'new'
 ): Promise<PaginatedBooksResponse> {
   const params = new URLSearchParams();
   if (search) params.set('search', search);
@@ -33,13 +36,35 @@ export async function fetchBooks(
   if (filters.minPrice) params.set('minPrice', filters.minPrice);
   if (filters.maxPrice) params.set('maxPrice', filters.maxPrice);
   params.set('page', String(page));
-  if (sort === 'rating') params.set('sort', sort);
+  if (sort !== 'new') params.set('sort', sort);
   const res = await fetch(`/api/books?${params.toString()}`);
   return res.json();
 }
 
 export async function fetchBooksByOwner(ownerId: string): Promise<BookSummary[]> {
   const res = await fetch(`/api/books?owner=${ownerId}`);
+  return res.json();
+}
+
+export async function fetchBooksByIds(ids: string[]): Promise<BookSummary[]> {
+  if (ids.length === 0) return [];
+  const res = await fetch(`/api/books?ids=${ids.join(',')}`);
+  return res.json();
+}
+
+export async function fetchBookById(id: string): Promise<BookDetail> {
+  const res = await fetch(`/api/books/${id}`);
+  if (!res.ok) return parseError(res, 'Не вдалося завантажити книгу');
+  return res.json();
+}
+
+export async function updateBook(id: string, data: unknown) {
+  const res = await fetch(`/api/books/${id}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+  });
+  if (!res.ok) return parseError(res, 'Не вдалося оновити книгу');
   return res.json();
 }
 
@@ -70,6 +95,26 @@ export async function toggleSavedBook(userId: string, bookId: string, save: bool
     body: JSON.stringify({ bookId }),
   });
   if (!res.ok) return parseError(res, 'Не вдалося зберегти книгу');
+  return res.json();
+}
+
+export async function toggleBlockedUser(userId: string, blockedUserId: string, block: boolean) {
+  const res = await fetch(`/api/users/${userId}/blocked-users`, {
+    method: block ? 'POST' : 'DELETE',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ userId: blockedUserId }),
+  });
+  if (!res.ok) return parseError(res, 'Не вдалося оновити блокування');
+  return res.json();
+}
+
+export async function reportUser(reportedUserId: string, reason: string) {
+  const res = await fetch('/api/reports', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ reportedUserId, reason }),
+  });
+  if (!res.ok) return parseError(res, 'Не вдалося надіслати скаргу');
   return res.json();
 }
 

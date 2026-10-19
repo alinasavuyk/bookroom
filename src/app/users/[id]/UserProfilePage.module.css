@@ -10,6 +10,14 @@
   gap: 1rem;
 }
 
+.headerInfo {
+  min-width: 0;
+}
+
+.headerActions {
+  margin-left: auto;
+}
+
 .avatar {
   width: 4.5rem;
   height: 4.5rem;

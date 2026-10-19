@@ -11,6 +11,7 @@ export interface IBook {
   type: 'sale' | 'exchange' | 'both';
   status: 'available' | 'reserved' | 'sold';
   owner: mongoose.Types.ObjectId;
+  views: number;
 }
 
 const BookSchema = new Schema<IBook>(
@@ -25,6 +26,7 @@ const BookSchema = new Schema<IBook>(
     type: { type: String, enum: ['sale', 'exchange', 'both'], default: 'sale' },
     status: { type: String, enum: ['available', 'reserved', 'sold'], default: 'available' },
     owner: { type: Schema.Types.ObjectId, ref: 'User', required: true },
+    views: { type: Number, default: 0 },
   },
   { timestamps: true }
 );

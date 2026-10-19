@@ -7,6 +7,7 @@ import { fetchBooksByOwner, sendExchangeOffer, NovaPoshtaCity, NovaPoshtaWarehou
 import { useToast } from '@/components/ToastProvider';
 import Modal from '@/components/Modal';
 import DeliveryPicker from '@/components/DeliveryPicker';
+import { getLastDelivery, saveLastDelivery } from '@/lib/lastDelivery';
 import { BookOwner } from '@/types/models';
 import styles from './ExchangeOfferButton.module.css';
 
@@ -60,8 +61,9 @@ export default function ExchangeOfferButton({
     e.preventDefault();
     e.stopPropagation();
     setSelectedId(null);
-    setCity(null);
-    setWarehouse(null);
+    const last = getLastDelivery();
+    setCity(last?.city ?? null);
+    setWarehouse(last?.warehouse ?? null);
     setOpen(true);
   };
 
@@ -73,6 +75,7 @@ export default function ExchangeOfferButton({
       { _id: chosen._id, title: chosen.title },
       {
         onSuccess: () => {
+          saveLastDelivery(city, warehouse);
           showToast('Пропозицію обміну надіслано');
           setOpen(false);
         },

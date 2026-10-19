@@ -23,6 +23,7 @@ export interface BookDetail extends BookSummary {
   genres: string[];
   images?: string[];
   owner: BookOwner;
+  views?: number;
 }
 
 export interface CommentAuthor {

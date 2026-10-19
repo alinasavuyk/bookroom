@@ -9,6 +9,7 @@ export interface IUser {
   provider: 'credentials' | 'google';
   savedBooks: mongoose.Types.ObjectId[];
   cart: mongoose.Types.ObjectId[];
+  blockedUsers: mongoose.Types.ObjectId[];
   rating: number;
 }
 
@@ -22,6 +23,7 @@ const UserSchema = new Schema<IUser>(
     provider: { type: String, enum: ['credentials', 'google'], default: 'credentials' },
     savedBooks: [{ type: Schema.Types.ObjectId, ref: 'Book' }],
     cart: [{ type: Schema.Types.ObjectId, ref: 'Book' }],
+    blockedUsers: [{ type: Schema.Types.ObjectId, ref: 'User' }],
     rating: { type: Number, default: 0 },
   },
   { timestamps: true }

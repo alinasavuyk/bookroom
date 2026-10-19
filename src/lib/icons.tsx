@@ -19,4 +19,7 @@ export {
   TbMoodSmile,
   TbPlus,
   TbZoomIn,
+  TbDotsVertical,
+  TbUserX,
+  TbFlag,
 } from 'react-icons/tb';

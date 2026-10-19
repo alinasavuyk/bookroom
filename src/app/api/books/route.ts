@@ -6,7 +6,7 @@ import { getRatingsMap } from '@/lib/ratings';
 import { isNonEmpty } from '@/lib/validation';
 import { OTHER_GENRE, STANDARD_BOOK_GENRES } from '@/lib/genres';
 
-// GET /api/books?genre=&type=&search=&owner=&minPrice=&maxPrice=&page=&sort= — каталог з фільтрами
+// GET /api/books?genre=&type=&search=&owner=&minPrice=&maxPrice=&page=&sort=&ids= — каталог з фільтрами
 export async function GET(request: Request) {
   await connectDB();
   const { searchParams } = new URL(request.url);
@@ -18,6 +18,23 @@ export async function GET(request: Request) {
   const maxPrice = searchParams.get('maxPrice');
   const pageParam = searchParams.get('page');
   const sort = searchParams.get('sort');
+  const ids = searchParams.get('ids');
+
+  // Пошук за конкретним набором id (наприклад, "нещодавно переглянуті") — без
+  // пагінації й додаткових фільтрів, просто повертає ці книги
+  if (ids) {
+    const idList = ids.split(',').filter(Boolean);
+    const books = await Book.find({ _id: { $in: idList } })
+      .populate('owner', 'name avatar')
+      .lean();
+    const ratingsMap = await getRatingsMap(books.map((b) => b._id));
+    const booksWithRatings = books.map((b) => ({
+      ...b,
+      avgRating: ratingsMap.get(b._id.toString())?.avgRating ?? 0,
+      reviewCount: ratingsMap.get(b._id.toString())?.reviewCount ?? 0,
+    }));
+    return NextResponse.json(booksWithRatings);
+  }
 
   const query: Record<string, unknown> = {};
   if (genre) {
@@ -76,7 +93,10 @@ export async function GET(request: Request) {
     });
   }
 
-  const booksQuery = Book.find(query).populate('owner', 'name avatar').sort({ createdAt: -1 });
+  const sortOption: Record<string, 1 | -1> =
+    sort === 'price_asc' ? { price: 1 } : sort === 'price_desc' ? { price: -1 } : { createdAt: -1 };
+
+  const booksQuery = Book.find(query).populate('owner', 'name avatar').sort(sortOption);
   if (isPaginated) {
     booksQuery.skip((page - 1) * BOOKS_PER_PAGE).limit(BOOKS_PER_PAGE);
   }

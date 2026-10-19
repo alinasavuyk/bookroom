@@ -3,7 +3,7 @@ import { auth } from '@/lib/auth';
 import { connectDB } from '@/lib/mongodb';
 import Order from '@/models/Order';
 import Book from '@/models/Book';
-import Message from '@/models/Message';
+import { createMessageAndNotify } from '@/lib/notifications';
 
 // PATCH /api/orders/:id — підтвердити (лише продавець) чи скасувати
 // (покупець або продавець) замовлення
@@ -41,7 +41,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     order.status = 'confirmed';
     await order.save();
 
-    await Message.create({
+    await createMessageAndNotify({
       sender: meId,
       receiver: order.buyer,
       book: order.book,
@@ -61,7 +61,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
       await book.save();
     }
 
-    await Message.create({
+    await createMessageAndNotify({
       sender: meId,
       receiver: isBuyer ? order.seller : order.buyer,
       book: order.book,

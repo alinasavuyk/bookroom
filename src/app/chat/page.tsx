@@ -14,6 +14,7 @@ import {
   NovaPoshtaWarehouse,
 } from '@/lib/api-client';
 import { uploadImageToCloudinary } from '@/lib/cloudinary';
+import { getLastDelivery, saveLastDelivery } from '@/lib/lastDelivery';
 import { TbPlus, TbMoodSmile, TbX } from '@/lib/icons';
 import { useRequireAuth } from '@/lib/useRequireAuth';
 import { useToast } from '@/components/ToastProvider';
@@ -21,6 +22,7 @@ import Loader from '@/components/Loader';
 import Modal from '@/components/Modal';
 import DeliveryPicker from '@/components/DeliveryPicker';
 import EmojiPicker from '@/components/EmojiPicker';
+import UserActionsMenu from '@/components/UserActionsMenu';
 import styles from './ChatPage.module.css';
 
 function formatTime(iso: string) {
@@ -74,6 +76,12 @@ function ChatPageContent() {
     queryKey: ['user', selectedUserId],
     queryFn: () => fetchUserProfile(selectedUserId!),
     enabled: !!selectedUserId,
+  });
+
+  const { data: myProfile } = useQuery({
+    queryKey: ['user', meId],
+    queryFn: () => fetchUserProfile(meId!),
+    enabled: !!meId,
   });
 
   const { data: messages = [], isLoading: messagesLoading } = useQuery({
@@ -171,12 +179,15 @@ function ChatPageContent() {
 
   const handleDeliverySubmit = () => {
     if (!deliveryModal || !modalCity || !modalWarehouse) return;
-    offerMutation.mutate({
-      id: deliveryModal.messageId,
-      action: 'accept',
-      city: modalCity.name,
-      warehouse: modalWarehouse.number,
-    });
+    offerMutation.mutate(
+      {
+        id: deliveryModal.messageId,
+        action: 'accept',
+        city: modalCity.name,
+        warehouse: modalWarehouse.number,
+      },
+      { onSuccess: () => saveLastDelivery(modalCity, modalWarehouse) }
+    );
   };
 
   const activeConversation = conversations.find((c) => c.userId === selectedUserId);
@@ -261,6 +272,16 @@ function ChatPageContent() {
                   <div className={styles.avatarPlaceholder}>{headerName.charAt(0).toUpperCase()}</div>
                 )}
                 <span className={styles.threadHeaderName}>{headerName}</span>
+
+                {meId && selectedUserId && (
+                  <div className={styles.threadHeaderActions}>
+                    <UserActionsMenu
+                      myId={meId}
+                      targetUserId={selectedUserId}
+                      isBlocked={(myProfile?.blockedUsers ?? []).includes(selectedUserId)}
+                    />
+                  </div>
+                )}
               </div>
 
               {messagesLoading ? (
@@ -323,7 +344,12 @@ function ChatPageContent() {
                                     <>
                                       <button
                                         type="button"
-                                        onClick={() => setDeliveryModal({ messageId: message._id })}
+                                        onClick={() => {
+                                          const last = getLastDelivery();
+                                          setModalCity(last?.city ?? null);
+                                          setModalWarehouse(last?.warehouse ?? null);
+                                          setDeliveryModal({ messageId: message._id });
+                                        }}
                                         disabled={offerMutation.isPending}
                                         className={styles.offerAccept}
                                       >

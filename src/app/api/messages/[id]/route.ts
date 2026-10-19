@@ -3,6 +3,7 @@ import { auth } from '@/lib/auth';
 import { connectDB } from '@/lib/mongodb';
 import Message from '@/models/Message';
 import Book from '@/models/Book';
+import { createMessageAndNotify } from '@/lib/notifications';
 
 const BOOK_REF_FIELDS = 'title coverImage price';
 
@@ -51,7 +52,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
       );
     }
 
-    await Message.create({
+    await createMessageAndNotify({
       sender: meId,
       receiver: isSender ? message.receiver : message.sender,
       book: message.book,
@@ -87,7 +88,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
       { $set: { status: 'reserved' } }
     );
 
-    await Message.create({
+    await createMessageAndNotify({
       sender: meId,
       receiver: message.sender,
       book: message.book,
@@ -98,7 +99,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     message.offerStatus = 'declined';
     await message.save();
 
-    await Message.create({
+    await createMessageAndNotify({
       sender: meId,
       receiver: message.sender,
       book: message.book,

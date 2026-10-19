@@ -18,7 +18,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
       .populate({ path: 'savedBooks', populate: { path: 'owner', select: 'name avatar' } })
       .populate({ path: 'cart', populate: { path: 'owner', select: 'name avatar' } });
   } else {
-    query.select('-savedBooks -cart');
+    query.select('-savedBooks -cart -blockedUsers');
   }
 
   const user = await query;
