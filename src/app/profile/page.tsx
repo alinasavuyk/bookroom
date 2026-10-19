@@ -24,12 +24,13 @@ import {
   respondToExchangeOffer,
 } from '@/lib/api-client';
 import { useRequireAuth } from '@/lib/useRequireAuth';
+import { uploadImageToCloudinary } from '@/lib/cloudinary';
 import { useToast } from '@/components/ToastProvider';
 import formStyles from '@/styles/Form.module.css';
 import gridStyles from '@/styles/BookGrid.module.css';
 import styles from './ProfilePage.module.css';
 
-const MAX_AVATAR_SIZE = 5 * 1024 * 1024; // 5 МБ
+const MAX_AVATAR_SIZE = 10 * 1024 * 1024; // 10 МБ — фото з телефону часто важать 5-8 МБ
 
 // Однонаправлена залежність від newPassword — інакше Yup ловить циклічну
 // залежність, якщо поля посилаються одне на одного через .when()
@@ -323,15 +324,7 @@ function ProfilePageContent() {
 
       let avatarUrl = values.avatar;
       if (avatarFile) {
-        const data = new FormData();
-        data.append('file', avatarFile);
-        data.append('upload_preset', process.env.NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET as string);
-        const res = await fetch(
-          `https://api.cloudinary.com/v1_1/${process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME}/image/upload`,
-          { method: 'POST', body: data }
-        );
-        const result = await res.json();
-        avatarUrl = result.secure_url;
+        avatarUrl = await uploadImageToCloudinary(avatarFile);
       }
 
       try {
@@ -379,12 +372,19 @@ function ProfilePageContent() {
   const handleAvatarChange = (e: ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0] ?? null;
     if (file) {
-      if (!file.type.startsWith('image/')) {
-        setAvatarError('Файл має бути зображенням');
+      // file.type іноді порожній на деяких мобільних (камера/галерея не завжди
+      // проставляють MIME-тип) — тоді довіряємо вибору через accept="image/*"
+      // замість хибно блокувати валідне фото
+      if (file.type && !file.type.startsWith('image/')) {
+        const message = 'Файл має бути зображенням';
+        setAvatarError(message);
+        showToast(message, 'error');
         return;
       }
       if (file.size > MAX_AVATAR_SIZE) {
-        setAvatarError('Розмір файлу не більше 5 МБ');
+        const message = 'Розмір файлу не більше 10 МБ';
+        setAvatarError(message);
+        showToast(message, 'error');
         return;
       }
     }
