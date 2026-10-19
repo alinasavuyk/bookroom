@@ -322,12 +322,12 @@ function ProfilePageContent() {
       setMessage('');
       if (!userId) return;
 
-      let avatarUrl = values.avatar;
-      if (avatarFile) {
-        avatarUrl = await uploadImageToCloudinary(avatarFile);
-      }
-
       try {
+        let avatarUrl = values.avatar;
+        if (avatarFile) {
+          avatarUrl = await uploadImageToCloudinary(avatarFile);
+        }
+
         await updateProfileMutation.mutateAsync({ name: values.name, bio: values.bio, avatar: avatarUrl });
 
         if (values.newPassword) {

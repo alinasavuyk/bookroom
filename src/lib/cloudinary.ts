@@ -26,5 +26,10 @@ export async function uploadImageToCloudinary(file: File): Promise<string> {
     { method: 'POST', body: data }
   );
   const result = await res.json();
+
+  if (!res.ok || !result.secure_url) {
+    throw new Error(result?.error?.message || 'Не вдалося завантажити фото');
+  }
+
   return result.secure_url;
 }

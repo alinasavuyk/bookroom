@@ -17,6 +17,7 @@ const ptSerif = PT_Serif({
 });
 
 export const metadata: Metadata = {
+  metadataBase: new URL(process.env.NEXTAUTH_URL ?? 'http://localhost:3000'),
   title: {
     default: 'Bookroom — книжкова спільнота',
     template: '%s — Bookroom',
