@@ -4,7 +4,7 @@ import { useSession } from 'next-auth/react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { TbShoppingCart, TbShoppingCartFilled } from '@/lib/icons';
 import { fetchUserProfile, toggleCartItem } from '@/lib/api-client';
-import { useToast } from '@/components/ToastProvider';
+import { useToast, onErrorToast } from '@/components/ToastProvider';
 import styles from './CartButton.module.css';
 
 interface CartButtonProps {
@@ -48,7 +48,7 @@ export default function CartButton({ bookId, ownerId, className, children }: Car
         showToast(next ? 'Додано в кошик' : 'Прибрано з кошика');
         queryClient.invalidateQueries({ queryKey: ['user', userId] });
       },
-      onError: () => showToast('Не вдалося оновити кошик', 'error'),
+      onError: onErrorToast(showToast, 'Не вдалося оновити кошик'),
     });
   };
 

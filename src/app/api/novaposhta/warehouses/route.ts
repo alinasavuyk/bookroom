@@ -1,13 +1,11 @@
 import { NextResponse } from 'next/server';
-import { auth } from '@/lib/auth';
+import { requireAuth } from '@/lib/apiAuth';
 import { searchWarehouses } from '@/lib/novaPoshta';
 
 // GET /api/novaposhta/warehouses?cityRef=<ref>&q=<пошук> — відділення в обраному місті (лише для залогінених)
 export async function GET(request: Request) {
-  const session = await auth();
-  if (!session?.user?.id) {
-    return NextResponse.json({ error: 'Потрібно увійти в акаунт' }, { status: 401 });
-  }
+  const auth = await requireAuth();
+  if (auth.error) return auth.error;
 
   const { searchParams } = new URL(request.url);
   const cityRef = searchParams.get('cityRef');

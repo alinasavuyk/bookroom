@@ -22,6 +22,12 @@ export function useToast(): ToastContextValue {
   return ctx;
 }
 
+// Готовий onError для useMutation — showToast(фіксований текст, або err.message,
+// якщо текст не передали) замість однакового інлайн-колбека в кожному файлі
+export function onErrorToast(showToast: ToastContextValue['showToast'], message?: string) {
+  return (err: Error) => showToast(message ?? err.message, 'error');
+}
+
 const DISPLAY_MS = 4000;
 
 export default function ToastProvider({ children }: { children: ReactNode }) {

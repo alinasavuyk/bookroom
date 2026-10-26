@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server';
-import { auth } from '@/lib/auth';
 import { connectDB } from '@/lib/mongodb';
+import { requireAuth } from '@/lib/apiAuth';
+import { parseBody } from '@/lib/apiValidation';
+import { orderActionSchema } from '@/lib/apiSchemas';
 import Order from '@/models/Order';
 import Book from '@/models/Book';
 import { createMessageAndNotify } from '@/lib/notifications';
@@ -8,22 +10,19 @@ import { createMessageAndNotify } from '@/lib/notifications';
 // PATCH /api/orders/:id — підтвердити (лише продавець) чи скасувати
 // (покупець або продавець) замовлення
 export async function PATCH(request: Request, { params }: { params: Promise<{ id: string }> }) {
-  const session = await auth();
-  if (!session?.user?.id) {
-    return NextResponse.json({ error: 'Потрібно увійти в акаунт' }, { status: 401 });
-  }
+  const auth = await requireAuth();
+  if (auth.error) return auth.error;
+  const meId = auth.userId;
 
   const { id } = await params;
-  const { action } = await request.json();
-  if (action !== 'cancel' && action !== 'confirm') {
-    return NextResponse.json({ error: 'Невідома дія' }, { status: 400 });
-  }
+  const body = await parseBody(request, orderActionSchema);
+  if (body.error) return body.error;
+  const { action } = body.data;
 
   await connectDB();
   const order = await Order.findById(id);
   if (!order) return NextResponse.json({ error: 'Замовлення не знайдено' }, { status: 404 });
 
-  const meId = session.user.id;
   const isBuyer = order.buyer.toString() === meId;
   const isSeller = order.seller.toString() === meId;
   if (!isBuyer && !isSeller) {

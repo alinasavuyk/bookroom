@@ -1,30 +1,28 @@
 import { NextResponse } from 'next/server';
-import { auth } from '@/lib/auth';
 import { connectDB } from '@/lib/mongodb';
+import { requireAuth } from '@/lib/apiAuth';
+import { parseBody } from '@/lib/apiValidation';
+import { createReportSchema } from '@/lib/apiSchemas';
 import Report from '@/models/Report';
-import { isNonEmpty } from '@/lib/validation';
 
 // POST /api/reports — поскаржитись на користувача (лише залогінені)
 export async function POST(request: Request) {
-  const session = await auth();
-  if (!session?.user?.id) {
-    return NextResponse.json({ error: 'Потрібно увійти в акаунт' }, { status: 401 });
-  }
+  const auth = await requireAuth();
+  if (auth.error) return auth.error;
 
-  const { reportedUserId, reason } = await request.json();
+  const body = await parseBody(request, createReportSchema);
+  if (body.error) return body.error;
+  const { reportedUserId, reason } = body.data;
 
-  if (!reportedUserId || !isNonEmpty(reason)) {
-    return NextResponse.json({ error: 'Опиши причину скарги' }, { status: 400 });
-  }
-  if (reportedUserId === session.user.id) {
+  if (reportedUserId === auth.userId) {
     return NextResponse.json({ error: 'Не можна поскаржитись на самого себе' }, { status: 400 });
   }
 
   await connectDB();
   const report = await Report.create({
-    reporter: session.user.id,
+    reporter: auth.userId,
     reportedUser: reportedUserId,
-    reason: reason.trim(),
+    reason,
   });
 
   return NextResponse.json(report, { status: 201 });

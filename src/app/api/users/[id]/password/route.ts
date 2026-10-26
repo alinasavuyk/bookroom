@@ -1,28 +1,21 @@
 import { NextResponse } from 'next/server';
 import bcrypt from 'bcryptjs';
-import { auth } from '@/lib/auth';
 import { connectDB } from '@/lib/mongodb';
+import { requireSelf } from '@/lib/apiAuth';
+import { parseBody } from '@/lib/apiValidation';
+import { changePasswordSchema } from '@/lib/apiSchemas';
 import User from '@/models/User';
-import { isValidPassword, isNonEmpty } from '@/lib/validation';
 
 // POST /api/users/:id/password — змінити пароль (з перевіркою поточного) — лише свій
 export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
-  const session = await auth();
-  if (!session?.user?.id) {
-    return NextResponse.json({ error: 'Потрібно увійти в акаунт' }, { status: 401 });
-  }
-
   const { id } = await params;
-  if (session.user.id !== id) {
-    return NextResponse.json({ error: 'Немає доступу до цього профілю' }, { status: 403 });
-  }
+  const auth = await requireSelf(id);
+  if (auth.error) return auth.error;
 
   await connectDB();
-  const { currentPassword, newPassword } = await request.json();
-
-  if (!isNonEmpty(currentPassword) || !isValidPassword(newPassword)) {
-    return NextResponse.json({ error: 'Перевір правильність заповнення полів' }, { status: 400 });
-  }
+  const body = await parseBody(request, changePasswordSchema);
+  if (body.error) return body.error;
+  const { currentPassword, newPassword } = body.data;
 
   const user = await User.findById(id);
   if (!user || !user.password) {

@@ -1,8 +1,10 @@
 import { NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 import { connectDB } from '@/lib/mongodb';
+import { requireSelf } from '@/lib/apiAuth';
+import { parseBody } from '@/lib/apiValidation';
+import { updateProfileSchema } from '@/lib/apiSchemas';
 import User from '@/models/User';
-import { isNonEmpty } from '@/lib/validation';
 
 // GET /api/users/:id — публічний профіль користувача; кошик і збережені книги
 // повертаються лише власнику цього профілю (приватні дані)
@@ -28,24 +30,14 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
 
 // PATCH /api/users/:id — оновити профіль (ім'я, аватар) — лише свій
 export async function PATCH(request: Request, { params }: { params: Promise<{ id: string }> }) {
-  const session = await auth();
-  if (!session?.user?.id) {
-    return NextResponse.json({ error: 'Потрібно увійти в акаунт' }, { status: 401 });
-  }
-
   const { id } = await params;
-  if (session.user.id !== id) {
-    return NextResponse.json({ error: 'Немає доступу до цього профілю' }, { status: 403 });
-  }
+  const auth = await requireSelf(id);
+  if (auth.error) return auth.error;
 
   await connectDB();
-  const data = await request.json();
-  delete data.password; // пароль міняємо окремим захищеним роутом
+  const body = await parseBody(request, updateProfileSchema);
+  if (body.error) return body.error;
 
-  if ('name' in data && !isNonEmpty(data.name)) {
-    return NextResponse.json({ error: "Ім'я не може бути порожнім" }, { status: 400 });
-  }
-
-  const user = await User.findByIdAndUpdate(id, data, { new: true }).select('-password');
+  const user = await User.findByIdAndUpdate(id, body.data, { new: true }).select('-password');
   return NextResponse.json(user);
 }

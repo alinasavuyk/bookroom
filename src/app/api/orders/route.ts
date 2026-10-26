@@ -1,20 +1,18 @@
 import { NextResponse } from 'next/server';
-import { auth } from '@/lib/auth';
 import { connectDB } from '@/lib/mongodb';
+import { requireAuth } from '@/lib/apiAuth';
 import Order from '@/models/Order';
 
 // GET /api/orders?as=buyer|seller — мої замовлення (як покупець або як продавець)
 export async function GET(request: Request) {
-  const session = await auth();
-  if (!session?.user?.id) {
-    return NextResponse.json({ error: 'Потрібно увійти в акаунт' }, { status: 401 });
-  }
+  const auth = await requireAuth();
+  if (auth.error) return auth.error;
 
   await connectDB();
   const { searchParams } = new URL(request.url);
   const as = searchParams.get('as') === 'seller' ? 'seller' : 'buyer';
 
-  const orders = await Order.find({ [as]: session.user.id })
+  const orders = await Order.find({ [as]: auth.userId })
     .populate('buyer', 'name avatar')
     .populate('seller', 'name avatar')
     .sort({ createdAt: -1 });

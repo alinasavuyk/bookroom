@@ -2,7 +2,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { toggleBlockedUser, reportUser } from '@/lib/api-client';
-import { useToast } from '@/components/ToastProvider';
+import { useToast, onErrorToast } from '@/components/ToastProvider';
 import Modal from '@/components/Modal';
 import { TbDotsVertical, TbFlag, TbUserX } from '@/lib/icons';
 import styles from './UserActionsMenu.module.css';
@@ -37,7 +37,7 @@ export default function UserActionsMenu({ myId, targetUserId, isBlocked }: UserA
       queryClient.invalidateQueries({ queryKey: ['user', myId] });
       showToast(block ? 'Користувача заблоковано' : 'Користувача розблоковано');
     },
-    onError: () => showToast('Не вдалося оновити блокування', 'error'),
+    onError: onErrorToast(showToast, 'Не вдалося оновити блокування'),
   });
 
   const reportMutation = useMutation({
@@ -47,7 +47,7 @@ export default function UserActionsMenu({ myId, targetUserId, isBlocked }: UserA
       setReportOpen(false);
       setReason('');
     },
-    onError: (err: Error) => showToast(err.message, 'error'),
+    onError: onErrorToast(showToast),
   });
 
   if (myId === targetUserId) return null;

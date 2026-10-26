@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server';
-import { auth } from '@/lib/auth';
 import { connectDB } from '@/lib/mongodb';
+import { requireAuth } from '@/lib/apiAuth';
+import { parseBody } from '@/lib/apiValidation';
+import { respondToOfferSchema } from '@/lib/apiSchemas';
 import Message from '@/models/Message';
 import Book from '@/models/Book';
 import { createMessageAndNotify } from '@/lib/notifications';
@@ -11,16 +13,14 @@ const BOOK_REF_FIELDS = 'title coverImage price';
 // відхилити пропозицію обміну (лише отримувач), або скасувати її
 // (будь-яка зі сторін, поки обмін ще не завершено)
 export async function PATCH(request: Request, { params }: { params: Promise<{ id: string }> }) {
-  const session = await auth();
-  if (!session?.user?.id) {
-    return NextResponse.json({ error: 'Потрібно увійти в акаунт' }, { status: 401 });
-  }
+  const auth = await requireAuth();
+  if (auth.error) return auth.error;
+  const meId = auth.userId;
 
   const { id } = await params;
-  const { action, city, warehouse } = await request.json();
-  if (action !== 'accept' && action !== 'decline' && action !== 'cancel') {
-    return NextResponse.json({ error: 'Невідома дія' }, { status: 400 });
-  }
+  const body = await parseBody(request, respondToOfferSchema);
+  if (body.error) return body.error;
+  const { action, city, warehouse } = body.data;
 
   await connectDB();
   const message = await Message.findById(id);
@@ -29,7 +29,6 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     return NextResponse.json({ error: 'Це не пропозиція обміну' }, { status: 400 });
   }
 
-  const meId = session.user.id;
   const isSender = message.sender.toString() === meId;
   const isReceiver = message.receiver.toString() === meId;
 

@@ -1,209 +1,30 @@
 'use client';
-import { useState, useEffect, ChangeEvent, Suspense } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 import { useSession } from 'next-auth/react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Image from 'next/image';
-import { useFormik } from 'formik';
-import * as Yup from 'yup';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import BookCard from '@/components/BookCard';
 import Loader from '@/components/Loader';
 import Modal from '@/components/Modal';
 import PaginatedBookGrid from '@/components/PaginatedBookGrid';
-import PasswordInput from '@/components/PasswordInput';
+import ProfileEditForm from '@/components/ProfileEditForm';
+import OrderRow from '@/components/OrderRow';
+import ExchangeRow from '@/components/ExchangeRow';
 import Tabs from '@/components/Tabs';
-import { OrderDTO, ExchangeDTO } from '@/types/models';
 import {
   fetchUserProfile,
   fetchBooksByOwner,
-  updateProfile,
-  changePassword,
   fetchOrders,
   updateOrderStatus,
   fetchExchanges,
   respondToExchangeOffer,
 } from '@/lib/api-client';
 import { useRequireAuth } from '@/lib/useRequireAuth';
-import { uploadImageToCloudinary } from '@/lib/cloudinary';
-import { useToast } from '@/components/ToastProvider';
+import { useToast, onErrorToast } from '@/components/ToastProvider';
 import formStyles from '@/styles/Form.module.css';
 import gridStyles from '@/styles/BookGrid.module.css';
 import styles from './ProfilePage.module.css';
-
-const MAX_AVATAR_SIZE = 10 * 1024 * 1024; // 10 МБ — фото з телефону часто важать 5-8 МБ
-
-// Однонаправлена залежність від newPassword — інакше Yup ловить циклічну
-// залежність, якщо поля посилаються одне на одного через .when()
-const profileSchema = Yup.object({
-  name: Yup.string().trim().required("Вкажи ім'я"),
-  bio: Yup.string(),
-  newPassword: Yup.string().min(6, 'Новий пароль має містити щонайменше 6 символів'),
-  currentPassword: Yup.string().when('newPassword', {
-    is: (newPassword: string) => !!newPassword,
-    then: (schema) => schema.required('Введи поточний пароль'),
-  }),
-  confirmPassword: Yup.string().when('newPassword', {
-    is: (newPassword: string) => !!newPassword,
-    then: (schema) =>
-      schema.oneOf([Yup.ref('newPassword')], 'Паролі не збігаються').required('Підтвердь новий пароль'),
-  }),
-});
-
-const PAYMENT_LABEL: Record<OrderDTO['paymentMethod'], string> = {
-  cash: 'Готівкою при отриманні',
-  card: 'Переказ на карту',
-  cod: 'Накладений платіж',
-};
-
-const ORDER_STATUS_LABEL: Record<OrderDTO['status'], string> = {
-  active: 'Очікує підтвердження',
-  confirmed: 'Підтверджено',
-  cancelled: 'Скасовано',
-};
-
-function OrderRow({
-  order,
-  counterpart,
-  counterpartLabel,
-  role,
-  onConfirm,
-  onCancel,
-  isUpdating,
-}: {
-  order: OrderDTO;
-  counterpart: OrderDTO['buyer'];
-  counterpartLabel: string;
-  role: 'buyer' | 'seller';
-  onConfirm: (orderId: string) => void;
-  onCancel: (orderId: string) => void;
-  isUpdating: boolean;
-}) {
-  return (
-    <li className={styles.orderCard}>
-      {order.bookCoverImage ? (
-        <Image
-          src={order.bookCoverImage}
-          alt={order.bookTitle}
-          width={48}
-          height={68}
-          className={styles.orderCover}
-        />
-      ) : (
-        <div className={styles.orderCoverPlaceholder} />
-      )}
-      <div className={styles.orderInfo}>
-        <div className={styles.orderTitleRow}>
-          <p className={styles.orderTitle}>{order.bookTitle}</p>
-          <span className={`${styles.orderStatus} ${styles[`orderStatus_${order.status}`]}`}>
-            {ORDER_STATUS_LABEL[order.status]}
-          </span>
-        </div>
-        {order.bookAuthor && <p className={styles.orderAuthor}>{order.bookAuthor}</p>}
-        <p className={styles.orderMeta}>
-          {order.price} ₴ · {counterpartLabel}: {counterpart.name}
-        </p>
-        <p className={styles.orderMeta}>
-          Нова Пошта, {order.city}, відділення {order.warehouse}
-        </p>
-        <p className={styles.orderMeta}>{PAYMENT_LABEL[order.paymentMethod]}</p>
-        <p className={styles.orderDate}>{new Date(order.createdAt).toLocaleDateString('uk-UA')}</p>
-
-        {order.status !== 'cancelled' && (
-          <div className={styles.orderActions}>
-            {role === 'seller' && order.status === 'active' && (
-              <button
-                type="button"
-                onClick={() => onConfirm(order._id)}
-                disabled={isUpdating}
-                className={styles.orderConfirmButton}
-              >
-                Підтвердити
-              </button>
-            )}
-            <button
-              type="button"
-              onClick={() => onCancel(order._id)}
-              disabled={isUpdating}
-              className={styles.orderCancelButton}
-            >
-              Скасувати замовлення
-            </button>
-          </div>
-        )}
-      </div>
-    </li>
-  );
-}
-
-const EXCHANGE_STATUS_LABEL: Record<ExchangeDTO['offerStatus'], string> = {
-  pending: 'Очікує відповіді',
-  accepted: 'Прийнято',
-  declined: 'Відхилено',
-  cancelled: 'Скасовано',
-};
-
-function ExchangeRow({
-  exchange,
-  meId,
-  onCancel,
-  isUpdating,
-}: {
-  exchange: ExchangeDTO;
-  meId: string;
-  onCancel: (messageId: string) => void;
-  isUpdating: boolean;
-}) {
-  const isOfferer = exchange.sender._id === meId;
-  const canCancel = exchange.offerStatus === 'pending' || exchange.offerStatus === 'accepted';
-  const counterpart = isOfferer ? exchange.receiver : exchange.sender;
-  const myDelivery = isOfferer
-    ? { city: exchange.offererCity, warehouse: exchange.offererWarehouse }
-    : { city: exchange.ownerCity, warehouse: exchange.ownerWarehouse };
-  const theirDelivery = isOfferer
-    ? { city: exchange.ownerCity, warehouse: exchange.ownerWarehouse }
-    : { city: exchange.offererCity, warehouse: exchange.offererWarehouse };
-
-  return (
-    <li className={styles.orderCard}>
-      <div className={styles.orderInfo}>
-        <div className={styles.orderTitleRow}>
-          <p className={styles.orderTitle}>
-            {exchange.offeredBook?.title} ⇄ {exchange.book?.title}
-          </p>
-          <span className={`${styles.orderStatus} ${styles[`exchangeStatus_${exchange.offerStatus}`]}`}>
-            {EXCHANGE_STATUS_LABEL[exchange.offerStatus]}
-          </span>
-        </div>
-        <p className={styles.orderMeta}>
-          {isOfferer ? 'Ти пропонувала обмін' : 'Тобі пропонували обмін'} · {counterpart.name}
-        </p>
-        {myDelivery.city && (
-          <p className={styles.orderMeta}>
-            Твоя доставка: {myDelivery.city}, відділення {myDelivery.warehouse}
-          </p>
-        )}
-        {theirDelivery.city && (
-          <p className={styles.orderMeta}>
-            Доставка {counterpart.name}: {theirDelivery.city}, відділення {theirDelivery.warehouse}
-          </p>
-        )}
-        <p className={styles.orderDate}>{new Date(exchange.createdAt).toLocaleDateString('uk-UA')}</p>
-        {canCancel && (
-          <div className={styles.orderActions}>
-            <button
-              type="button"
-              onClick={() => onCancel(exchange._id)}
-              disabled={isUpdating}
-              className={styles.orderCancelButton}
-            >
-              Скасувати обмін
-            </button>
-          </div>
-        )}
-      </div>
-    </li>
-  );
-}
 
 export default function ProfilePage() {
   return (
@@ -223,6 +44,7 @@ function ProfilePageContent() {
   const userId = session?.user?.id;
 
   const [showWelcome, setShowWelcome] = useState(false);
+  const [editing, setEditing] = useState(false);
 
   useEffect(() => {
     const hasNewGoogleUserCookie = document.cookie.includes('google-new-user=1');
@@ -277,7 +99,7 @@ function ProfilePageContent() {
       queryClient.invalidateQueries({ queryKey: ['orders', 'buyer', userId] });
       queryClient.invalidateQueries({ queryKey: ['orders', 'seller', userId] });
     },
-    onError: (err: Error) => showToast(err.message, 'error'),
+    onError: onErrorToast(showToast),
   });
 
   const handleConfirmOrder = (orderId: string) => orderMutation.mutate({ orderId, action: 'confirm' });
@@ -288,108 +110,16 @@ function ProfilePageContent() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['exchanges', userId] });
     },
-    onError: (err: Error) => showToast(err.message, 'error'),
+    onError: onErrorToast(showToast),
   });
 
   const handleCancelExchange = (messageId: string) => exchangeMutation.mutate(messageId);
-
-  const [editing, setEditing] = useState(false);
-  const [avatarFile, setAvatarFile] = useState<File | null>(null);
-  const [avatarError, setAvatarError] = useState('');
-  const [message, setMessage] = useState('');
-
-  const updateProfileMutation = useMutation({
-    mutationFn: (data: { name: string; bio: string; avatar: string }) => updateProfile(userId!, data),
-  });
-
-  const changePasswordMutation = useMutation({
-    mutationFn: (data: { currentPassword: string; newPassword: string }) =>
-      changePassword(userId!, data.currentPassword, data.newPassword),
-  });
-
-  const formik = useFormik({
-    enableReinitialize: true,
-    initialValues: {
-      name: profile?.name ?? '',
-      bio: profile?.bio ?? '',
-      avatar: profile?.avatar ?? '',
-      currentPassword: '',
-      newPassword: '',
-      confirmPassword: '',
-    },
-    validationSchema: profileSchema,
-    onSubmit: async (values) => {
-      setMessage('');
-      if (!userId) return;
-
-      try {
-        let avatarUrl = values.avatar;
-        if (avatarFile) {
-          avatarUrl = await uploadImageToCloudinary(avatarFile);
-        }
-
-        await updateProfileMutation.mutateAsync({ name: values.name, bio: values.bio, avatar: avatarUrl });
-
-        if (values.newPassword) {
-          await changePasswordMutation.mutateAsync({
-            currentPassword: values.currentPassword,
-            newPassword: values.newPassword,
-          });
-        }
-
-        queryClient.invalidateQueries({ queryKey: ['user', userId] });
-        setAvatarFile(null);
-        setEditing(false);
-        showToast('Профіль збережено!');
-      } catch (err) {
-        setMessage(err instanceof Error ? err.message : 'Сталася помилка при збереженні.');
-      }
-    },
-  });
-
-  const startEditing = () => {
-    formik.resetForm();
-    setAvatarFile(null);
-    setAvatarError('');
-    setMessage('');
-    setEditing(true);
-  };
 
   const dismissWelcome = () => setShowWelcome(false);
 
   const handleFillNow = () => {
     setShowWelcome(false);
-    startEditing();
-  };
-
-  const cancelEditing = () => {
-    formik.resetForm();
-    setAvatarFile(null);
-    setAvatarError('');
-    setEditing(false);
-  };
-
-  const handleAvatarChange = (e: ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0] ?? null;
-    if (file) {
-      // file.type іноді порожній на деяких мобільних (камера/галерея не завжди
-      // проставляють MIME-тип) — тоді довіряємо вибору через accept="image/*"
-      // замість хибно блокувати валідне фото
-      if (file.type && !file.type.startsWith('image/')) {
-        const message = 'Файл має бути зображенням';
-        setAvatarError(message);
-        showToast(message, 'error');
-        return;
-      }
-      if (file.size > MAX_AVATAR_SIZE) {
-        const message = 'Розмір файлу не більше 10 МБ';
-        setAvatarError(message);
-        showToast(message, 'error');
-        return;
-      }
-    }
-    setAvatarError('');
-    setAvatarFile(file);
+    setEditing(true);
   };
 
   if (status === 'loading' || profileLoading) {
@@ -419,8 +149,6 @@ function ProfilePageContent() {
         </Modal>
       )}
 
-      {message && <p className={styles.message}>{message}</p>}
-
       {!editing ? (
         <div className={styles.header}>
           {profile.avatar ? (
@@ -437,245 +165,147 @@ function ProfilePageContent() {
           <div>
             <h1 className={styles.name}>{profile.name}</h1>
             {profile.bio && <p className={styles.bio}>{profile.bio}</p>}
-            <button type="button" onClick={startEditing} className={styles.editButton}>
+            <button type="button" onClick={() => setEditing(true)} className={styles.editButton}>
               Редагувати профіль
             </button>
           </div>
         </div>
       ) : (
-        <form onSubmit={formik.handleSubmit} noValidate className={`${formStyles.form} ${formStyles.formNarrow}`}>
-          <h1 className={formStyles.title}>Редагування профілю</h1>
-
-          <div className={styles.avatarRow}>
-            {avatarFile ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img src={URL.createObjectURL(avatarFile)} alt="" className={styles.avatarPreview} />
-            ) : formik.values.avatar ? (
-              <Image
-                src={formik.values.avatar}
-                alt={formik.values.name}
-                width={64}
-                height={64}
-                className={styles.avatarPreview}
-              />
-            ) : (
-              <div className={styles.avatarPlaceholder}>
-                {formik.values.name.charAt(0).toUpperCase() || '?'}
-              </div>
-            )}
-            <div>
-              <input type="file" accept="image/*" onChange={handleAvatarChange} className={formStyles.field} />
-              {avatarError && <p className={formStyles.errorText}>{avatarError}</p>}
-            </div>
-          </div>
-
-          <label className={formStyles.label}>
-            <span className={formStyles.labelText}>Ім&apos;я</span>
-            <input
-              type="text"
-              name="name"
-              value={formik.values.name}
-              onChange={formik.handleChange}
-              onBlur={formik.handleBlur}
-              className={formStyles.field}
-            />
-            {formik.touched.name && formik.errors.name && (
-              <p className={formStyles.errorText}>{formik.errors.name}</p>
-            )}
-          </label>
-
-          <label className={formStyles.label}>
-            <span className={formStyles.labelText}>Про себе</span>
-            <textarea
-              name="bio"
-              value={formik.values.bio}
-              onChange={formik.handleChange}
-              className={formStyles.field}
-              rows={4}
-            />
-          </label>
-
-          <div className={styles.passwordSection}>
-            <p className={styles.passwordTitle}>Змінити пароль (необов&apos;язково)</p>
-            <label className={formStyles.label}>
-              <span className={formStyles.labelText}>Поточний пароль</span>
-              <PasswordInput
-                name="currentPassword"
-                value={formik.values.currentPassword}
-                onChange={formik.handleChange}
-                onBlur={formik.handleBlur}
-                className={formStyles.field}
-              />
-              {formik.touched.currentPassword && formik.errors.currentPassword && (
-                <p className={formStyles.errorText}>{formik.errors.currentPassword}</p>
-              )}
-            </label>
-            <label className={formStyles.label}>
-              <span className={formStyles.labelText}>Новий пароль</span>
-              <PasswordInput
-                name="newPassword"
-                value={formik.values.newPassword}
-                onChange={formik.handleChange}
-                onBlur={formik.handleBlur}
-                className={formStyles.field}
-              />
-              {formik.touched.newPassword && formik.errors.newPassword && (
-                <p className={formStyles.errorText}>{formik.errors.newPassword}</p>
-              )}
-            </label>
-            <label className={formStyles.label}>
-              <span className={formStyles.labelText}>Підтвердіть новий пароль</span>
-              <PasswordInput
-                name="confirmPassword"
-                value={formik.values.confirmPassword}
-                onChange={formik.handleChange}
-                onBlur={formik.handleBlur}
-                className={formStyles.field}
-              />
-              {formik.touched.confirmPassword && formik.errors.confirmPassword && (
-                <p className={formStyles.errorText}>{formik.errors.confirmPassword}</p>
-              )}
-            </label>
-          </div>
-
-          <div className={styles.actionsRow}>
-            <button type="submit" disabled={formik.isSubmitting} className={formStyles.submitButton}>
-              {formik.isSubmitting ? 'Збереження...' : 'Зберегти'}
-            </button>
-            <button type="button" onClick={cancelEditing} className={styles.cancelButton}>
-              Скасувати
-            </button>
-          </div>
-        </form>
+        <ProfileEditForm
+          userId={userId!}
+          profile={{ name: profile.name, bio: profile.bio, avatar: profile.avatar }}
+          onCancel={() => setEditing(false)}
+          onSaved={() => setEditing(false)}
+        />
       )}
 
       <div className={styles.tabsWrap}>
-      <Tabs
-        tabs={[
-          {
-            key: 'myBooks',
-            label: (
-              <>
-                Мої книги <span className={styles.tabCount}>{myBooks.length}</span>
-              </>
-            ),
-            content: (
-              <PaginatedBookGrid
-                items={myBooks}
-                emptyText="Ти ще не додала жодної книги"
-                getKey={(book) => book._id}
-                renderItem={(book) => <BookCard book={book} />}
-              />
-            ),
-          },
-          {
-            key: 'saved',
-            label: (
-              <>
-                Збережені книги <span className={styles.tabCount}>{profile.savedBooks.length}</span>
-              </>
-            ),
-            content: (
-              <PaginatedBookGrid
-                items={profile.savedBooks}
-                emptyText="Немає збережених книг"
-                getKey={(book) => book._id}
-                renderItem={(book) => (
-                  <BookCard
-                    book={book}
-                    initialSaved
-                    onToggleSaved={(bookId, saved) => {
-                      if (!saved && userId) {
-                        queryClient.setQueryData<typeof profile>(['user', userId], (prev) =>
-                          prev ? { ...prev, savedBooks: prev.savedBooks.filter((b) => b._id !== bookId) } : prev
-                        );
-                      }
-                    }}
-                  />
-                )}
-              />
-            ),
-          },
-          {
-            key: 'purchases',
-            label: (
-              <>
-                Мої покупки <span className={styles.tabCount}>{myPurchases.length}</span>
-              </>
-            ),
-            content:
-              myPurchases.length > 0 ? (
-                <ul className={styles.orderList}>
-                  {myPurchases.map((order) => (
-                    <OrderRow
-                      key={order._id}
-                      order={order}
-                      counterpart={order.seller}
-                      counterpartLabel="Продавець"
-                      role="buyer"
-                      onConfirm={handleConfirmOrder}
-                      onCancel={handleCancelOrder}
-                      isUpdating={orderMutation.isPending}
-                    />
-                  ))}
-                </ul>
-              ) : (
-                <p className={gridStyles.empty}>Ти ще нічого не замовляла</p>
+        <Tabs
+          tabs={[
+            {
+              key: 'myBooks',
+              label: (
+                <>
+                  Мої книги <span className={styles.tabCount}>{myBooks.length}</span>
+                </>
               ),
-          },
-          {
-            key: 'received',
-            label: (
-              <>
-                Отримані замовлення <span className={styles.tabCount}>{receivedOrders.length}</span>
-              </>
-            ),
-            content:
-              receivedOrders.length > 0 ? (
-                <ul className={styles.orderList}>
-                  {receivedOrders.map((order) => (
-                    <OrderRow
-                      key={order._id}
-                      order={order}
-                      counterpart={order.buyer}
-                      counterpartLabel="Покупець"
-                      role="seller"
-                      onConfirm={handleConfirmOrder}
-                      onCancel={handleCancelOrder}
-                      isUpdating={orderMutation.isPending}
-                    />
-                  ))}
-                </ul>
-              ) : (
-                <p className={gridStyles.empty}>Поки що немає замовлень на твої книги</p>
+              content: (
+                <PaginatedBookGrid
+                  items={myBooks}
+                  emptyText="Ти ще не додала жодної книги"
+                  getKey={(book) => book._id}
+                  renderItem={(book) => <BookCard book={book} />}
+                />
               ),
-          },
-          {
-            key: 'exchanges',
-            label: (
-              <>
-                Мої обміни <span className={styles.tabCount}>{exchanges.length}</span>
-              </>
-            ),
-            content:
-              exchanges.length > 0 ? (
-                <ul className={styles.orderList}>
-                  {exchanges.map((exchange) => (
-                    <ExchangeRow
-                      key={exchange._id}
-                      exchange={exchange}
-                      meId={userId ?? ''}
-                      onCancel={handleCancelExchange}
-                      isUpdating={exchangeMutation.isPending}
-                    />
-                  ))}
-                </ul>
-              ) : (
-                <p className={gridStyles.empty}>Поки що немає пропозицій обміну</p>
+            },
+            {
+              key: 'saved',
+              label: (
+                <>
+                  Збережені книги <span className={styles.tabCount}>{profile.savedBooks.length}</span>
+                </>
               ),
-          },
-        ]}
-      />
+              content: (
+                <PaginatedBookGrid
+                  items={profile.savedBooks}
+                  emptyText="Немає збережених книг"
+                  getKey={(book) => book._id}
+                  renderItem={(book) => (
+                    <BookCard
+                      book={book}
+                      initialSaved
+                      onToggleSaved={(bookId, saved) => {
+                        if (!saved && userId) {
+                          queryClient.setQueryData<typeof profile>(['user', userId], (prev) =>
+                            prev ? { ...prev, savedBooks: prev.savedBooks.filter((b) => b._id !== bookId) } : prev
+                          );
+                        }
+                      }}
+                    />
+                  )}
+                />
+              ),
+            },
+            {
+              key: 'purchases',
+              label: (
+                <>
+                  Мої покупки <span className={styles.tabCount}>{myPurchases.length}</span>
+                </>
+              ),
+              content:
+                myPurchases.length > 0 ? (
+                  <ul className={styles.orderList}>
+                    {myPurchases.map((order) => (
+                      <OrderRow
+                        key={order._id}
+                        order={order}
+                        counterpart={order.seller}
+                        counterpartLabel="Продавець"
+                        role="buyer"
+                        onConfirm={handleConfirmOrder}
+                        onCancel={handleCancelOrder}
+                        isUpdating={orderMutation.isPending}
+                      />
+                    ))}
+                  </ul>
+                ) : (
+                  <p className={gridStyles.empty}>Ти ще нічого не замовляла</p>
+                ),
+            },
+            {
+              key: 'received',
+              label: (
+                <>
+                  Отримані замовлення <span className={styles.tabCount}>{receivedOrders.length}</span>
+                </>
+              ),
+              content:
+                receivedOrders.length > 0 ? (
+                  <ul className={styles.orderList}>
+                    {receivedOrders.map((order) => (
+                      <OrderRow
+                        key={order._id}
+                        order={order}
+                        counterpart={order.buyer}
+                        counterpartLabel="Покупець"
+                        role="seller"
+                        onConfirm={handleConfirmOrder}
+                        onCancel={handleCancelOrder}
+                        isUpdating={orderMutation.isPending}
+                      />
+                    ))}
+                  </ul>
+                ) : (
+                  <p className={gridStyles.empty}>Поки що немає замовлень на твої книги</p>
+                ),
+            },
+            {
+              key: 'exchanges',
+              label: (
+                <>
+                  Мої обміни <span className={styles.tabCount}>{exchanges.length}</span>
+                </>
+              ),
+              content:
+                exchanges.length > 0 ? (
+                  <ul className={styles.orderList}>
+                    {exchanges.map((exchange) => (
+                      <ExchangeRow
+                        key={exchange._id}
+                        exchange={exchange}
+                        meId={userId ?? ''}
+                        onCancel={handleCancelExchange}
+                        isUpdating={exchangeMutation.isPending}
+                      />
+                    ))}
+                  </ul>
+                ) : (
+                  <p className={gridStyles.empty}>Поки що немає пропозицій обміну</p>
+                ),
+            },
+          ]}
+        />
       </div>
     </div>
   );

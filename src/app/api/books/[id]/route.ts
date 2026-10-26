@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server';
-import { auth } from '@/lib/auth';
 import { connectDB } from '@/lib/mongodb';
+import { requireAuth } from '@/lib/apiAuth';
+import { parseBody } from '@/lib/apiValidation';
+import { updateBookSchema } from '@/lib/apiSchemas';
 import Book from '@/models/Book';
 
 // GET /api/books/:id — деталі однієї книги
@@ -14,46 +16,43 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
 
 // PATCH /api/books/:id — оновити (наприклад, статус: продано/зарезервовано) — лише власник
 export async function PATCH(request: Request, { params }: { params: Promise<{ id: string }> }) {
-  const session = await auth();
-  if (!session?.user?.id) {
-    return NextResponse.json({ error: 'Потрібно увійти в акаунт' }, { status: 401 });
-  }
+  const auth = await requireAuth();
+  if (auth.error) return auth.error;
 
   await connectDB();
   const { id } = await params;
 
   const book = await Book.findById(id);
   if (!book) return NextResponse.json({ error: 'Книгу не знайдено' }, { status: 404 });
-  if (book.owner.toString() !== session.user.id) {
+  if (book.owner.toString() !== auth.userId) {
     return NextResponse.json({ error: 'Немає доступу до цього оголошення' }, { status: 403 });
   }
 
-  const data = await request.json();
-  delete data.owner; // власника міняти не можна
+  const body = await parseBody(request, updateBookSchema);
+  if (body.error) return body.error;
+  const updates = body.data;
 
-  const nextType = data.type ?? book.type;
-  const nextPrice = data.price ?? book.price;
+  const nextType = updates.type ?? book.type;
+  const nextPrice = updates.price ?? book.price;
   if ((nextType === 'sale' || nextType === 'both') && (!nextPrice || nextPrice <= 0)) {
     return NextResponse.json({ error: 'Вкажи ціну для продажу книги' }, { status: 400 });
   }
 
-  const updated = await Book.findByIdAndUpdate(id, data, { new: true });
+  const updated = await Book.findByIdAndUpdate(id, updates, { new: true });
   return NextResponse.json(updated);
 }
 
 // DELETE /api/books/:id — видалити оголошення — лише власник
 export async function DELETE(request: Request, { params }: { params: Promise<{ id: string }> }) {
-  const session = await auth();
-  if (!session?.user?.id) {
-    return NextResponse.json({ error: 'Потрібно увійти в акаунт' }, { status: 401 });
-  }
+  const auth = await requireAuth();
+  if (auth.error) return auth.error;
 
   await connectDB();
   const { id } = await params;
 
   const book = await Book.findById(id);
   if (!book) return NextResponse.json({ error: 'Книгу не знайдено' }, { status: 404 });
-  if (book.owner.toString() !== session.user.id) {
+  if (book.owner.toString() !== auth.userId) {
     return NextResponse.json({ error: 'Немає доступу до цього оголошення' }, { status: 403 });
   }
 

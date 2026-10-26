@@ -12,7 +12,7 @@ import {
   NovaPoshtaCity,
   NovaPoshtaWarehouse,
 } from '@/lib/api-client';
-import { useToast } from '@/components/ToastProvider';
+import { useToast, onErrorToast } from '@/components/ToastProvider';
 import Modal from '@/components/Modal';
 import DeliveryPicker from '@/components/DeliveryPicker';
 import { getLastDelivery, saveLastDelivery } from '@/lib/lastDelivery';
@@ -43,13 +43,13 @@ export default function CartWidget() {
   const removeMutation = useMutation({
     mutationFn: (bookId: string) => toggleCartItem(userId!, bookId, false),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['user', userId] }),
-    onError: () => showToast('Не вдалося прибрати книгу з кошика', 'error'),
+    onError: onErrorToast(showToast, 'Не вдалося прибрати книгу з кошика'),
   });
 
   const saveMutation = useMutation({
     mutationFn: ({ bookId, save }: { bookId: string; save: boolean }) => toggleSavedBook(userId!, bookId, save),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['user', userId] }),
-    onError: () => showToast('Не вдалося зберегти книгу', 'error'),
+    onError: onErrorToast(showToast, 'Не вдалося зберегти книгу'),
   });
 
   const checkoutMutation = useMutation({
@@ -69,7 +69,7 @@ export default function CartWidget() {
       setWarehouse(null);
       setPaymentMethod('cash');
     },
-    onError: () => showToast('Не вдалося оформити замовлення', 'error'),
+    onError: onErrorToast(showToast, 'Не вдалося оформити замовлення'),
   });
 
   if (status !== 'authenticated') return null;

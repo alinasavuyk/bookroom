@@ -1,21 +1,20 @@
 import { NextResponse } from 'next/server';
-import { auth } from '@/lib/auth';
 import { connectDB } from '@/lib/mongodb';
+import { requireSelf } from '@/lib/apiAuth';
+import { parseBody } from '@/lib/apiValidation';
+import { userIdBodySchema } from '@/lib/apiSchemas';
 import User from '@/models/User';
 
 // POST /api/users/:id/blocked-users — заблокувати користувача — лише собі
 export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
-  const session = await auth();
-  if (!session?.user?.id) {
-    return NextResponse.json({ error: 'Потрібно увійти в акаунт' }, { status: 401 });
-  }
-
   const { id } = await params;
-  if (session.user.id !== id) {
-    return NextResponse.json({ error: 'Немає доступу до цього профілю' }, { status: 403 });
-  }
+  const auth = await requireSelf(id);
+  if (auth.error) return auth.error;
 
-  const { userId } = await request.json();
+  const body = await parseBody(request, userIdBodySchema);
+  if (body.error) return body.error;
+  const { userId } = body.data;
+
   if (userId === id) {
     return NextResponse.json({ error: 'Не можна заблокувати самого себе' }, { status: 400 });
   }
@@ -31,20 +30,15 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
 
 // DELETE /api/users/:id/blocked-users — розблокувати користувача — лише собі
 export async function DELETE(request: Request, { params }: { params: Promise<{ id: string }> }) {
-  const session = await auth();
-  if (!session?.user?.id) {
-    return NextResponse.json({ error: 'Потрібно увійти в акаунт' }, { status: 401 });
-  }
-
   const { id } = await params;
-  if (session.user.id !== id) {
-    return NextResponse.json({ error: 'Немає доступу до цього профілю' }, { status: 403 });
-  }
+  const auth = await requireSelf(id);
+  if (auth.error) return auth.error;
 
-  const { userId } = await request.json();
+  const body = await parseBody(request, userIdBodySchema);
+  if (body.error) return body.error;
 
   await connectDB();
-  const user = await User.findByIdAndUpdate(id, { $pull: { blockedUsers: userId } }, { new: true }).select(
+  const user = await User.findByIdAndUpdate(id, { $pull: { blockedUsers: body.data.userId } }, { new: true }).select(
     '-password'
   );
 

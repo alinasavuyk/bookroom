@@ -1,8 +1,9 @@
 import { NextResponse } from 'next/server';
-import { auth } from '@/lib/auth';
 import { connectDB } from '@/lib/mongodb';
+import { requireAuth } from '@/lib/apiAuth';
+import { parseBody } from '@/lib/apiValidation';
+import { createCommentSchema } from '@/lib/apiSchemas';
 import Comment from '@/models/Comment';
-import { isNonEmpty } from '@/lib/validation';
 
 // GET /api/comments?bookId=... — усі коментарі для книги
 export async function GET(request: Request) {
@@ -19,27 +20,19 @@ export async function GET(request: Request) {
 
 // POST /api/comments — додати новий коментар/рецензію (лише для залогінених)
 export async function POST(request: Request) {
-  const session = await auth();
-  if (!session?.user?.id) {
-    return NextResponse.json({ error: 'Потрібно увійти в акаунт' }, { status: 401 });
-  }
+  const auth = await requireAuth();
+  if (auth.error) return auth.error;
 
   await connectDB();
-  const data = await request.json();
-
-  if (!isNonEmpty(data.text) || !data.book) {
-    return NextResponse.json({ error: 'Заповни текст рецензії' }, { status: 400 });
-  }
-
-  if (data.rating !== undefined && (data.rating < 1 || data.rating > 5)) {
-    return NextResponse.json({ error: 'Оцінка має бути від 1 до 5' }, { status: 400 });
-  }
+  const body = await parseBody(request, createCommentSchema);
+  if (body.error) return body.error;
+  const { text, rating, book } = body.data;
 
   const comment = await Comment.create({
-    text: data.text,
-    rating: data.rating,
-    book: data.book,
-    author: session.user.id,
+    text,
+    rating,
+    book,
+    author: auth.userId,
   });
 
   return NextResponse.json(comment, { status: 201 });

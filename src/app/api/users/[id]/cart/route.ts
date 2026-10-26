@@ -1,24 +1,21 @@
 import { NextResponse } from 'next/server';
-import { auth } from '@/lib/auth';
 import { connectDB } from '@/lib/mongodb';
+import { requireSelf } from '@/lib/apiAuth';
+import { parseBody } from '@/lib/apiValidation';
+import { bookIdSchema } from '@/lib/apiSchemas';
 import User from '@/models/User';
 
 // POST /api/users/:id/cart — додати книгу в кошик — лише собі
 export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
-  const session = await auth();
-  if (!session?.user?.id) {
-    return NextResponse.json({ error: 'Потрібно увійти в акаунт' }, { status: 401 });
-  }
-
   const { id } = await params;
-  if (session.user.id !== id) {
-    return NextResponse.json({ error: 'Немає доступу до цього профілю' }, { status: 403 });
-  }
+  const auth = await requireSelf(id);
+  if (auth.error) return auth.error;
 
   await connectDB();
-  const { bookId } = await request.json();
+  const body = await parseBody(request, bookIdSchema);
+  if (body.error) return body.error;
 
-  const user = await User.findByIdAndUpdate(id, { $addToSet: { cart: bookId } }, { new: true }).select(
+  const user = await User.findByIdAndUpdate(id, { $addToSet: { cart: body.data.bookId } }, { new: true }).select(
     '-password'
   );
 
@@ -28,20 +25,15 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
 
 // DELETE /api/users/:id/cart — прибрати книгу з кошика — лише собі
 export async function DELETE(request: Request, { params }: { params: Promise<{ id: string }> }) {
-  const session = await auth();
-  if (!session?.user?.id) {
-    return NextResponse.json({ error: 'Потрібно увійти в акаунт' }, { status: 401 });
-  }
-
   const { id } = await params;
-  if (session.user.id !== id) {
-    return NextResponse.json({ error: 'Немає доступу до цього профілю' }, { status: 403 });
-  }
+  const auth = await requireSelf(id);
+  if (auth.error) return auth.error;
 
   await connectDB();
-  const { bookId } = await request.json();
+  const body = await parseBody(request, bookIdSchema);
+  if (body.error) return body.error;
 
-  const user = await User.findByIdAndUpdate(id, { $pull: { cart: bookId } }, { new: true }).select(
+  const user = await User.findByIdAndUpdate(id, { $pull: { cart: body.data.bookId } }, { new: true }).select(
     '-password'
   );
 

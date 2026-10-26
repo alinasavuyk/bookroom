@@ -6,7 +6,7 @@ import * as Yup from 'yup';
 import { CommentDTO } from '@/types/models';
 import { fetchComments, postComment } from '@/lib/api-client';
 import Loader from '@/components/Loader';
-import { useToast } from '@/components/ToastProvider';
+import { useToast, onErrorToast } from '@/components/ToastProvider';
 import formStyles from '@/styles/Form.module.css';
 import styles from './CommentsSection.module.css';
 
@@ -38,9 +38,7 @@ export default function CommentsSection({ bookId }: { bookId: string }) {
       showToast('Рецензію додано!');
       formik.resetForm();
     },
-    onError: (err: Error) => {
-      showToast(err.message, 'error');
-    },
+    onError: onErrorToast(showToast),
   });
 
   const formik = useFormik({

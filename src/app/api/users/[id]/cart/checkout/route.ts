@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server';
-import { auth } from '@/lib/auth';
 import { connectDB } from '@/lib/mongodb';
+import { requireSelf } from '@/lib/apiAuth';
+import { parseBody } from '@/lib/apiValidation';
+import { checkoutSchema } from '@/lib/apiSchemas';
 import User from '@/models/User';
 import Book from '@/models/Book';
 import Order from '@/models/Order';
@@ -16,20 +18,13 @@ const PAYMENT_LABEL: Record<string, string> = {
 // їх зарезервованими і надіслати власникам автоматичне повідомлення
 // з даними доставки (лише собі)
 export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
-  const session = await auth();
-  if (!session?.user?.id) {
-    return NextResponse.json({ error: 'Потрібно увійти в акаунт' }, { status: 401 });
-  }
-
   const { id } = await params;
-  if (session.user.id !== id) {
-    return NextResponse.json({ error: 'Немає доступу до цього профілю' }, { status: 403 });
-  }
+  const auth = await requireSelf(id);
+  if (auth.error) return auth.error;
 
-  const { city, warehouse, paymentMethod } = await request.json();
-  if (!city || !warehouse || !PAYMENT_LABEL[paymentMethod]) {
-    return NextResponse.json({ error: 'Вкажи місто, відділення й спосіб оплати' }, { status: 400 });
-  }
+  const body = await parseBody(request, checkoutSchema);
+  if (body.error) return body.error;
+  const { city, warehouse, paymentMethod } = body.data;
 
   await connectDB();
   const user = await User.findById(id);

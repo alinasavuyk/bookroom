@@ -1,9 +1,10 @@
 import { NextResponse } from 'next/server';
-import { auth } from '@/lib/auth';
 import { connectDB } from '@/lib/mongodb';
+import { requireAuth } from '@/lib/apiAuth';
+import { parseBody } from '@/lib/apiValidation';
+import { createBookSchema } from '@/lib/apiSchemas';
 import Book from '@/models/Book';
 import { getRatingsMap } from '@/lib/ratings';
-import { isNonEmpty } from '@/lib/validation';
 import { OTHER_GENRE, STANDARD_BOOK_GENRES } from '@/lib/genres';
 
 // GET /api/books?genre=&type=&search=&owner=&minPrice=&maxPrice=&page=&sort=&ids= — каталог з фільтрами
@@ -123,32 +124,18 @@ export async function GET(request: Request) {
 
 // POST /api/books — додати нову книгу на продаж/обмін (лише для залогінених)
 export async function POST(request: Request) {
-  const session = await auth();
-  if (!session?.user?.id) {
-    return NextResponse.json({ error: 'Потрібно увійти в акаунт' }, { status: 401 });
-  }
+  const auth = await requireAuth();
+  if (auth.error) return auth.error;
 
   await connectDB();
-  const data = await request.json();
+  const body = await parseBody(request, createBookSchema);
+  if (body.error) return body.error;
+  const data = body.data;
 
-  if (!isNonEmpty(data.title) || !isNonEmpty(data.author)) {
-    return NextResponse.json({ error: 'Заповни назву й автора книги' }, { status: 400 });
-  }
-
-  if (!Array.isArray(data.genres) || data.genres.length === 0) {
-    return NextResponse.json({ error: 'Обери хоча б один жанр' }, { status: 400 });
-  }
-
-  if ((data.type === 'sale' || data.type === 'both') && (!data.price || data.price <= 0)) {
-    return NextResponse.json({ error: 'Вкажи ціну для продажу книги' }, { status: 400 });
-  }
-
-  const images: string[] = Array.isArray(data.images) ? data.images : [];
   const book = await Book.create({
     ...data,
-    images,
-    coverImage: images[0] || data.coverImage || '',
-    owner: session.user.id,
+    coverImage: data.images[0] || data.coverImage || '',
+    owner: auth.userId,
   });
   return NextResponse.json(book, { status: 201 });
 }

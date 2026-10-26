@@ -1,20 +1,18 @@
 import { NextResponse } from 'next/server';
 import mongoose from 'mongoose';
-import { auth } from '@/lib/auth';
 import { connectDB } from '@/lib/mongodb';
+import { requireAuth } from '@/lib/apiAuth';
 import Message from '@/models/Message';
 import User from '@/models/User';
 
 // GET /api/messages/conversations — список розмов поточного користувача,
 // відсортований за часом останнього повідомлення, з лічильником непрочитаних
 export async function GET() {
-  const session = await auth();
-  if (!session?.user?.id) {
-    return NextResponse.json({ error: 'Потрібно увійти в акаунт' }, { status: 401 });
-  }
+  const auth = await requireAuth();
+  if (auth.error) return auth.error;
 
   await connectDB();
-  const meId = new mongoose.Types.ObjectId(session.user.id);
+  const meId = new mongoose.Types.ObjectId(auth.userId);
 
   const conversations = await Message.aggregate([
     { $match: { $or: [{ sender: meId }, { receiver: meId }] } },

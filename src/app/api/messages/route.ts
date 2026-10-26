@@ -1,19 +1,19 @@
 import { NextResponse } from 'next/server';
-import { auth } from '@/lib/auth';
 import { connectDB } from '@/lib/mongodb';
+import { requireAuth } from '@/lib/apiAuth';
+import { parseBody } from '@/lib/apiValidation';
+import { sendMessageSchema } from '@/lib/apiSchemas';
 import Message from '@/models/Message';
 import User from '@/models/User';
-import { isNonEmpty } from '@/lib/validation';
 import { createMessageAndNotify } from '@/lib/notifications';
 
 const BOOK_REF_FIELDS = 'title coverImage price';
 
 // GET /api/messages?with=<userId> — історія переписки з конкретним користувачем (лише свої)
 export async function GET(request: Request) {
-  const session = await auth();
-  if (!session?.user?.id) {
-    return NextResponse.json({ error: 'Потрібно увійти в акаунт' }, { status: 401 });
-  }
+  const auth = await requireAuth();
+  if (auth.error) return auth.error;
+  const meId = auth.userId;
 
   await connectDB();
   const { searchParams } = new URL(request.url);
@@ -21,8 +21,6 @@ export async function GET(request: Request) {
   if (!withUserId) {
     return NextResponse.json({ error: 'Не вказано співрозмовника' }, { status: 400 });
   }
-
-  const meId = session.user.id;
 
   const messages = await Message.find({
     $or: [
@@ -43,27 +41,19 @@ export async function GET(request: Request) {
 // POST /api/messages — надіслати нове повідомлення, або пропозицію обміну,
 // якщо передано offeredBook (лише для залогінених)
 export async function POST(request: Request) {
-  const session = await auth();
-  if (!session?.user?.id) {
-    return NextResponse.json({ error: 'Потрібно увійти в акаунт' }, { status: 401 });
-  }
+  const auth = await requireAuth();
+  if (auth.error) return auth.error;
+  const meId = auth.userId;
 
   await connectDB();
-  const data = await request.json();
-
-  if (!data.receiver || (!isNonEmpty(data.text) && !isNonEmpty(data.image))) {
-    return NextResponse.json({ error: 'Заповни текст повідомлення' }, { status: 400 });
-  }
-
-  if (data.offeredBook && (!data.offererCity || !data.offererWarehouse)) {
-    return NextResponse.json({ error: 'Вкажи місто й відділення для доставки' }, { status: 400 });
-  }
+  const body = await parseBody(request, sendMessageSchema);
+  if (body.error) return body.error;
+  const data = body.data;
 
   const [me, receiver] = await Promise.all([
-    User.findById(session.user.id).select('blockedUsers'),
+    User.findById(meId).select('blockedUsers'),
     User.findById(data.receiver).select('blockedUsers'),
   ]);
-  const meId = session.user.id;
   const isBlocked =
     me?.blockedUsers.some((u) => u.toString() === data.receiver) ||
     receiver?.blockedUsers.some((u) => u.toString() === meId);
@@ -72,7 +62,7 @@ export async function POST(request: Request) {
   }
 
   const message = await createMessageAndNotify({
-    sender: session.user.id,
+    sender: meId,
     receiver: data.receiver,
     book: data.book || undefined,
     offeredBook: data.offeredBook || undefined,

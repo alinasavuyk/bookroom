@@ -4,7 +4,7 @@ import { useSession } from 'next-auth/react';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { TbArrowsExchange } from '@/lib/icons';
 import { fetchBooksByOwner, sendExchangeOffer, NovaPoshtaCity, NovaPoshtaWarehouse } from '@/lib/api-client';
-import { useToast } from '@/components/ToastProvider';
+import { useToast, onErrorToast } from '@/components/ToastProvider';
 import Modal from '@/components/Modal';
 import DeliveryPicker from '@/components/DeliveryPicker';
 import { getLastDelivery, saveLastDelivery } from '@/lib/lastDelivery';
@@ -79,7 +79,7 @@ export default function ExchangeOfferButton({
           showToast('Пропозицію обміну надіслано');
           setOpen(false);
         },
-        onError: () => showToast('Не вдалося надіслати пропозицію', 'error'),
+        onError: onErrorToast(showToast, 'Не вдалося надіслати пропозицію'),
       }
     );
   };

@@ -1,16 +1,14 @@
 import { NextResponse } from 'next/server';
-import { auth } from '@/lib/auth';
 import { connectDB } from '@/lib/mongodb';
+import { requireAuth } from '@/lib/apiAuth';
 import Message from '@/models/Message';
 
 // GET /api/messages/unread-count — кількість непрочитаних повідомлень поточного користувача
 export async function GET() {
-  const session = await auth();
-  if (!session?.user?.id) {
-    return NextResponse.json({ error: 'Потрібно увійти в акаунт' }, { status: 401 });
-  }
+  const auth = await requireAuth();
+  if (auth.error) return auth.error;
 
   await connectDB();
-  const count = await Message.countDocuments({ receiver: session.user.id, read: false });
+  const count = await Message.countDocuments({ receiver: auth.userId, read: false });
   return NextResponse.json({ count });
 }
