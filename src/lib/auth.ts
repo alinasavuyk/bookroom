@@ -1,10 +1,20 @@
-import NextAuth from 'next-auth';
+import NextAuth, { CredentialsSignin } from 'next-auth';
 import CredentialsProvider from 'next-auth/providers/credentials';
 import GoogleProvider from 'next-auth/providers/google';
 import bcrypt from 'bcryptjs';
 import { cookies } from 'next/headers';
 import { connectDB } from '@/lib/mongodb';
+import { checkRateLimit, getClientIp } from '@/lib/rateLimit';
 import User from '@/models/User';
+
+const SIGNIN_LIMIT = 5;
+const SIGNIN_WINDOW_MS = 15 * 60 * 1000;
+
+// Окремий код помилки (а не стандартний "credentials"), щоб клієнт міг
+// показати саме повідомлення про забагато спроб, а не "невірний пароль"
+class RateLimitError extends CredentialsSignin {
+  code = 'rate_limited';
+}
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
   // Vercel довіряє хосту автоматично, але явно вмикаємо і для інших середовищ
@@ -17,8 +27,12 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         email: { label: 'Email', type: 'email' },
         password: { label: 'Пароль', type: 'password' },
       },
-      async authorize(credentials) {
+      async authorize(credentials, request) {
         if (!credentials?.email || !credentials?.password) return null;
+
+        const ip = getClientIp(request);
+        const allowed = await checkRateLimit(`signin:${ip}:${credentials.email}`, SIGNIN_LIMIT, SIGNIN_WINDOW_MS);
+        if (!allowed) throw new RateLimitError();
 
         await connectDB();
         const user = await User.findOne({ email: credentials.email as string });

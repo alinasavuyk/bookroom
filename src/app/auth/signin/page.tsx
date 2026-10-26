@@ -46,7 +46,9 @@ function SignInPageContent() {
         redirect: false,
       });
 
-      if (result?.error) {
+      if (result?.code === 'rate_limited') {
+        setError('Забагато спроб входу. Спробуй через 15 хвилин.');
+      } else if (result?.error) {
         setError('Невірний email або пароль.');
       } else {
         router.push('/');
